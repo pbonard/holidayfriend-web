@@ -1,0 +1,5 @@
+/**
+ * The @stylex directive is replaced with the generated StyleX CSS
+ * by @stylexjs/postcss-plugin at build time.
+ */
+@stylex;
