@@ -9,7 +9,6 @@ const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
 
 export default function EmailInput() {
   const { control } = useFormContext();
-  const inputId = useId();
   const errorId = useId();
 
   return (
@@ -28,17 +27,14 @@ export default function EmailInput() {
       }}
       render={({ field: { name, value, onChange, onBlur, ref }, fieldState: { error } }) => (
         <div {...stylex.props(field.root, styles.root)}>
-          <label htmlFor={inputId} {...stylex.props(field.label)}>
-            Email
-          </label>
           <input
-            id={inputId}
+            aria-label="Email"
             ref={ref}
             name={name}
             type="email"
             inputMode="email"
             autoComplete="email"
-            placeholder="you@example.com"
+            placeholder="Enter your email"
             value={value}
             onChange={onChange}
             onBlur={onBlur}
@@ -64,10 +60,10 @@ const styles = stylex.create({
     left: "1px",
     alignSelf: "center",
     width: "100%",
-    maxWidth: "398px",
+    maxWidth: "318px",
   },
   control: {
-    height: "36px",
+    height: "32px",
     borderRadius: "4px",
   },
 });

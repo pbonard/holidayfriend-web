@@ -31,11 +31,7 @@ export default function SignupForm() {
         <AppleSignInButton />
       </div>
 
-      <div {...stylex.props(styles.divider)} role="separator">
-        <span {...stylex.props(styles.rule)} />
-        <span>or</span>
-        <span {...stylex.props(styles.rule)} />
-      </div>
+      <p {...stylex.props(styles.divider)}>or</p>
 
       <FormProvider {...emailSignupForm}>
         {/* noValidate: react-hook-form shows the errors instead of the browser's bubbles */}
@@ -50,7 +46,7 @@ export default function SignupForm() {
             disabled={emailSignupForm.formState.isSubmitting}
             xstyle={styles.submit}
           >
-            Create account
+            Continue with email
           </Button>
         </form>
       </FormProvider>
@@ -62,24 +58,23 @@ const styles = stylex.create({
   root: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '24px',
+    gap: '14px',
+    padding: '40px',
+    borderWidth: '0.5px',
+    borderStyle: 'solid',
+    borderColor: auth.border,
+    borderRadius: '8px',
+    backgroundColor: 'transparent',
   },
   providers: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px',
+    gap: '8px',
   },
   divider: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
     fontSize: '14px',
     color: auth.muted,
-  },
-  rule: {
-    flexGrow: 1,
-    height: '1px',
-    backgroundColor: auth.border,
+    textAlign: 'center',
   },
   form: {
     display: 'flex',
@@ -90,9 +85,9 @@ const styles = stylex.create({
     position: 'relative',
     left: '1px',
     alignSelf: 'center',
-    maxWidth: '398px',
-    height: '36px',
-    marginTop: '16px',
+    maxWidth: '318px',
+    height: '32px',
+    marginTop: '10px',
     borderRadius: '4px',
     fontSize: '14px',
   },

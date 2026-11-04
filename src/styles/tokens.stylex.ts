@@ -38,6 +38,6 @@ export const spacing = stylex.defineVars({
 });
 
 export const fonts = stylex.defineVars({
-  sans: 'var(--font-geist-sans), system-ui, sans-serif',
+  sans: 'var(--font-google-sans), Roboto, Arial, sans-serif',
   mono: 'var(--font-geist-mono), ui-monospace, monospace',
 });

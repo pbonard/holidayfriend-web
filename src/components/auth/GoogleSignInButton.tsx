@@ -8,7 +8,7 @@ import * as stylex from '@stylexjs/stylex';
 import { field } from '@/styles/field';
 import { signInWithGoogle } from '@/api/auth';
 
-const MAX_BUTTON_WIDTH = 400; // the most google's button accepts
+const MAX_BUTTON_WIDTH = 320; // the width of the form's controls, google draws its box 2px narrower
 const REDRAW_DELAY_MS = 150; // redraws load google's frame again, so not on every pixel of a resize
 
 // google only hands out an id token through its own rendered button, so this can't be our Button
@@ -47,7 +47,7 @@ export default function GoogleSignInButton() {
       google.accounts.id.renderButton(container, {
         type: 'standard',
         theme: 'filled_black',
-        size: 'large',
+        size: 'medium',
         text: 'continue_with',
         width,
       });
@@ -91,7 +91,7 @@ const styles = stylex.create({
   button: {
     display: 'flex',
     justifyContent: 'center',
-    minHeight: '44px',
+    minHeight: '32px',
     // the frame inside must not hold the column open when the window gets narrower
     contain: 'inline-size',
     overflow: 'hidden',

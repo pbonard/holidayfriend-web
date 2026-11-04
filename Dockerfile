@@ -20,6 +20,8 @@ ENV HOSTNAME=0.0.0.0
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
+# the optimised images are cached here, and the server doesn't run as root
+RUN mkdir -p .next/cache && chown -R node:node .next/cache
 USER node
 EXPOSE 3000
 CMD ["node", "server.js"]
