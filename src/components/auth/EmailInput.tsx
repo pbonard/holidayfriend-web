@@ -27,7 +27,7 @@ export default function EmailInput() {
         },
       }}
       render={({ field: { name, value, onChange, onBlur, ref }, fieldState: { error } }) => (
-        <div {...stylex.props(field.root)}>
+        <div {...stylex.props(field.root, styles.root)}>
           <label htmlFor={inputId} {...stylex.props(field.label)}>
             Email
           </label>
@@ -44,7 +44,7 @@ export default function EmailInput() {
             onBlur={onBlur}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? errorId : undefined}
-            {...stylex.props(field.control, error && field.controlError)}
+            {...stylex.props(field.control, styles.control, error && field.controlError)}
           />
           {error && (
             <p id={errorId} role="alert" {...stylex.props(field.error)}>
@@ -56,3 +56,18 @@ export default function EmailInput() {
     />
   );
 }
+
+// the same box as the sign in buttons around it
+const styles = stylex.create({
+  root: {
+    position: "relative",
+    left: "1px",
+    alignSelf: "center",
+    width: "100%",
+    maxWidth: "398px",
+  },
+  control: {
+    height: "36px",
+    borderRadius: "4px",
+  },
+});

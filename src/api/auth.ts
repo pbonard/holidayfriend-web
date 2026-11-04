@@ -14,3 +14,11 @@ export async function signInWithGoogle(idToken: string) {
   );
   accessToken = data.accessToken;
 }
+
+export async function signInWithApple(identityToken: string) {
+  const { data } = await axiosInstance.post<{ accessToken: string }>(
+    '/auth/email/apple',
+    { identityToken },
+  );
+  accessToken = data.accessToken;
+}

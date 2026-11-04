@@ -12,9 +12,10 @@ export const colors = stylex.defineVars({
 // the auth pages are always dark, whatever the system scheme
 export const auth = stylex.defineVars({
   hero: '#151413',
-  surface: '#201f1d',
+  // lighter than the #202124 google's dark button is locked to, so the sign in buttons stand out
+  surface: '#2e2c29',
   control: '#252422',
-  border: '#34322f',
+  border: '#46433f',
   text: '#f4efe8',
   muted: '#a9a49c',
   placeholder: '#77726b',
