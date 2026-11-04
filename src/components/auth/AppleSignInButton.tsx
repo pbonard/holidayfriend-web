@@ -27,7 +27,7 @@ export default function AppleSignInButton() {
         clientId,
         scope: 'email',
         // popup mode never navigates here, but apple requires it to be registered on the services id
-        redirectURI: `${window.location.origin}/signup`,
+        redirectURI: `${window.location.origin}/login`,
         // the backend claims each nonce once, so a token can't be replayed
         nonce: crypto.randomUUID(),
         usePopup: true,
@@ -53,7 +53,7 @@ export default function AppleSignInButton() {
           xstyle={styles.button}
         >
           <span {...stylex.props(styles.tile)}>
-            <AppleIcon />
+            <AppleIcon size={16} />
           </span>
           Continue with Apple
         </Button>
@@ -77,18 +77,17 @@ const styles = stylex.create({
     position: 'relative',
     // google's button sits 1px off center inside its frame
     left: '1px',
-    maxWidth: '398px',
-    height: '36px',
+    maxWidth: '318px',
+    height: '32px',
     borderWidth: 0,
     borderRadius: '4px',
     backgroundColor: { default: '#202124', ':hover': '#303134' },
     color: '#e8eaed',
-    fontFamily: 'Roboto, Arial, sans-serif',
     fontSize: '14px',
     fontWeight: 500,
     letterSpacing: '0.25px',
     // google centers its text in the space right of the logo tile
-    paddingLeft: '36px',
+    paddingLeft: '28px',
     // no fading while the script loads, so it never looks different from google's button
     opacity: 1,
   },
@@ -99,8 +98,8 @@ const styles = stylex.create({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '36px',
-    height: '36px',
+    width: '32px',
+    height: '32px',
     color: '#ffffff',
   },
 });

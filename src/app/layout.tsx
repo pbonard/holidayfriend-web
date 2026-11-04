@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Google_Sans } from "next/font/google";
 import * as stylex from "@stylexjs/stylex";
 import { colors, fonts } from "@/styles/tokens.stylex";
 import Providers from "@/components/Providers";
 import "@/styles/globals.css";
 import "@/styles/stylex.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// the font of google's sign in button, so the page's text matches it
+const googleSans = Google_Sans({
+  variable: "--font-google-sans",
   subsets: ["latin"],
 });
 
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html lang="en" className={`${googleSans.variable} ${geistMono.variable}`}>
       <body {...stylex.props(styles.body)}>
         <Providers>{children}</Providers>
       </body>
