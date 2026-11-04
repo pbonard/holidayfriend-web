@@ -1,10 +1,11 @@
-"use client";
+'use client';
 
-import { FormProvider, useForm } from "react-hook-form";
-import * as stylex from "@stylexjs/stylex";
-import { auth } from "@/styles/tokens.stylex";
-import Button from "@/components/Button";
-import EmailInput from "@/components/EmailInput";
+import { FormProvider, useForm } from 'react-hook-form';
+import * as stylex from '@stylexjs/stylex';
+import { auth } from '@/styles/tokens.stylex';
+import Button from '@/components/Button';
+import EmailInput from '@/components/EmailInput';
+import GoogleSignInButton from '@/components/GoogleSignInButton';
 
 interface FormValue {
   email: string;
@@ -13,7 +14,7 @@ interface FormValue {
 export default function SignupForm() {
   const emailSignupForm = useForm<FormValue>({
     defaultValues: {
-      email: "",
+      email: '',
     },
   });
 
@@ -25,7 +26,7 @@ export default function SignupForm() {
   return (
     <div {...stylex.props(styles.root)}>
       <div {...stylex.props(styles.providers)}>
-        <Button variant="secondary">Continue with Google</Button>
+        <GoogleSignInButton />
         <Button variant="secondary">Continue with Apple</Button>
       </div>
 
@@ -58,32 +59,32 @@ export default function SignupForm() {
 
 const styles = stylex.create({
   root: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "24px",
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px',
   },
   providers: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "12px",
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
   },
   divider: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    fontSize: "14px",
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    fontSize: '14px',
     color: auth.muted,
   },
   rule: {
     flexGrow: 1,
-    height: "1px",
+    height: '1px',
     backgroundColor: auth.border,
   },
   form: {
-    display: "flex",
-    flexDirection: "column",
+    display: 'flex',
+    flexDirection: 'column',
   },
   submit: {
-    marginTop: "16px",
+    marginTop: '16px',
   },
 });

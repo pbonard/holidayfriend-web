@@ -1,8 +1,11 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
+import { useMutation } from '@tanstack/react-query';
 import { FormProvider, useForm } from 'react-hook-form';
 import * as stylex from '@stylexjs/stylex';
 import { auth } from '@/styles/tokens.stylex';
+import { resendSMSOTP, verifySMSOTP } from '@/api/auth';
 import Button from '@/components/Button';
 import OTPInput from '@/components/OTPInput';
 
@@ -11,32 +14,45 @@ interface FormValue {
 }
 
 export default function CodeForm() {
+  const router = useRouter();
   const smsOTPForm = useForm<FormValue>({
     defaultValues: {
       otp: '',
     },
   });
+  const verify = useMutation({
+    mutationFn: verifySMSOTP,
+    onSuccess: () => router.replace('/'),
+    onError: ({ message }) => smsOTPForm.setError('otp', { message }),
+  });
+  const resend = useMutation({
+    mutationFn: resendSMSOTP,
+    onError: ({ message }) => smsOTPForm.setError('otp', { message }),
+  });
 
-  const onSubmit = async (formValues: FormValue) => {
-    // no sms api yet, the 6 digits reaching here are already checked by OTPInput
-    void formValues;
-  };
-
-  const resendCode = () => {
-    // no sms api yet, the code would be requested again for the saved number
-  };
+  // the 6 digits reaching here are already checked by OTPInput
+  const onSubmit = ({ otp }: FormValue) => verify.mutate(otp);
 
   return (
     <FormProvider {...smsOTPForm}>
       <form noValidate onSubmit={smsOTPForm.handleSubmit(onSubmit)}>
         <OTPInput />
-        <Button type="submit" disabled={smsOTPForm.formState.isSubmitting} xstyle={styles.submit}>
+        <Button
+          type="submit"
+          disabled={verify.isPending}
+          xstyle={styles.submit}
+        >
           Verify
         </Button>
       </form>
       <p {...stylex.props(styles.resend)}>
         Didn&apos;t get it?
-        <button type="button" onClick={resendCode} {...stylex.props(styles.resendButton)}>
+        <button
+          type="button"
+          disabled={resend.isPending}
+          onClick={() => resend.mutate()}
+          {...stylex.props(styles.resendButton)}
+        >
           Resend code
         </button>
       </p>

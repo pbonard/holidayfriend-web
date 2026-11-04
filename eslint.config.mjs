@@ -40,6 +40,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Kept code that isn't part of the app.
+    "forfutureusage/**",
   ]),
 ]);
 

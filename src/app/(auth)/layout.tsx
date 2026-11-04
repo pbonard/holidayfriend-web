@@ -3,7 +3,7 @@ import { auth, breakpoints } from '@/styles/tokens.stylex';
 import { jakarta, newsreader } from '@/styles/font';
 import TextLink from '@/components/TextLink';
 
-// the brand panel stays put while the signup steps (email, phone, code) swap on the right
+// the brand panel stays put while the signup steps (email, code) swap on the right
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className={`${jakarta.variable} ${newsreader.variable}`}>

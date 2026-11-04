@@ -2,6 +2,7 @@
 
 import { useId } from 'react';
 import { useRouter } from 'next/navigation';
+import { useMutation } from '@tanstack/react-query';
 import { FormProvider, useForm } from 'react-hook-form';
 import {
   parsePhoneNumberFromString,
@@ -9,6 +10,7 @@ import {
 } from 'libphonenumber-js';
 import * as stylex from '@stylexjs/stylex';
 import { field } from '@/styles/field';
+import { sendSMSOTP } from '@/api/auth';
 import Button from '@/components/Button';
 import CountryCodeSelect from '@/components/CountryCodeSelect';
 import PhoneNumberInput from '@/components/PhoneNumberInput';
@@ -29,8 +31,14 @@ export default function PhoneForm() {
     },
   });
   const error = phoneNumberForm.formState.errors.phoneNumber;
+  const sendCode = useMutation({
+    mutationFn: sendSMSOTP,
+    onSuccess: () => router.push('/signup/phone/otp'),
+    onError: ({ message }) =>
+      phoneNumberForm.setError('phoneNumber', { message }),
+  });
 
-  const onSubmit = async ({ countryCode, phoneNumber }: FormValue) => {
+  const onSubmit = ({ countryCode, phoneNumber }: FormValue) => {
     const wholeNumber = parsePhoneNumberFromString(
       phoneNumber,
       countryCode,
@@ -38,7 +46,7 @@ export default function PhoneForm() {
     if (!wholeNumber) {
       return;
     }
-    router.push('/signup/phone/code');
+    sendCode.mutate(wholeNumber);
   };
 
   return (
@@ -60,7 +68,7 @@ export default function PhoneForm() {
         </div>
         <Button
           type="submit"
-          disabled={phoneNumberForm.formState.isSubmitting}
+          disabled={sendCode.isPending}
           xstyle={styles.submit}
         >
           Send code
