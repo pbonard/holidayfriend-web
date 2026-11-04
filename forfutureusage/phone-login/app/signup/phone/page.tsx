@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import * as stylex from '@stylexjs/stylex';
 import { auth } from '@/styles/tokens.stylex';
-import AuthHeader from '@/components/AuthHeader';
+import AuthHeader from '@/components/auth/AuthHeader';
 import BackLink from '@/components/BackLink';
 import PhoneForm from '@/components/PhoneForm';
 

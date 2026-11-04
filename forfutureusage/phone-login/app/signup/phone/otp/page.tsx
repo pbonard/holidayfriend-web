@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import AuthHeader from '@/components/AuthHeader';
+import AuthHeader from '@/components/auth/AuthHeader';
 import BackLink from '@/components/BackLink';
 import CodeForm from '@/components/CodeForm';
 import TextLink from '@/components/TextLink';

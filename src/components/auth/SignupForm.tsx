@@ -3,9 +3,10 @@
 import { FormProvider, useForm } from 'react-hook-form';
 import * as stylex from '@stylexjs/stylex';
 import { auth } from '@/styles/tokens.stylex';
+import AppleSignInButton from '@/components/auth/AppleSignInButton';
 import Button from '@/components/Button';
-import EmailInput from '@/components/EmailInput';
-import GoogleSignInButton from '@/components/GoogleSignInButton';
+import EmailInput from '@/components/auth/EmailInput';
+import GoogleSignInButton from '@/components/auth/GoogleSignInButton';
 
 interface FormValue {
   email: string;
@@ -27,12 +28,12 @@ export default function SignupForm() {
     <div {...stylex.props(styles.root)}>
       <div {...stylex.props(styles.providers)}>
         <GoogleSignInButton />
-        <Button variant="secondary">Continue with Apple</Button>
+        <AppleSignInButton />
       </div>
 
       <div {...stylex.props(styles.divider)} role="separator">
         <span {...stylex.props(styles.rule)} />
-        <span>or with email</span>
+        <span>or</span>
         <span {...stylex.props(styles.rule)} />
       </div>
 
@@ -84,7 +85,15 @@ const styles = stylex.create({
     display: 'flex',
     flexDirection: 'column',
   },
+  // the same box as the google and apple buttons above it
   submit: {
+    position: 'relative',
+    left: '1px',
+    alignSelf: 'center',
+    maxWidth: '398px',
+    height: '36px',
     marginTop: '16px',
+    borderRadius: '4px',
+    fontSize: '14px',
   },
 });

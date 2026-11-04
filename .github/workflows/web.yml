@@ -29,10 +29,12 @@ jobs:
         env:
           REPOSITORY: ghcr.io/${{ github.repository_owner }}/holidayfriend/web
           GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_SIGN_IN_WEB_CLIENT_ID }}
+          APPLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_APPLE_SIGN_IN_CLIENT_ID }}
         run: |
           IMAGE=$(echo "$REPOSITORY" | tr '[:upper:]' '[:lower:]')
           docker buildx build --platform linux/amd64 \
             --build-arg NEXT_PUBLIC_GOOGLE_SIGN_IN_WEB_CLIENT_ID="$GOOGLE_CLIENT_ID" \
+            --build-arg NEXT_PUBLIC_APPLE_SIGN_IN_CLIENT_ID="$APPLE_CLIENT_ID" \
             -t "$IMAGE:${GITHUB_SHA::7}" \
             -t "$IMAGE:latest" \
             . --push

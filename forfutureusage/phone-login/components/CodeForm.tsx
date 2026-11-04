@@ -7,7 +7,7 @@ import * as stylex from '@stylexjs/stylex';
 import { auth } from '@/styles/tokens.stylex';
 import { resendSMSOTP, verifySMSOTP } from '@/api/auth';
 import Button from '@/components/Button';
-import OTPInput from '@/components/OTPInput';
+import OTPInput from '@/components/auth/OTPInput';
 
 interface FormValue {
   otp: string;

@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 import * as stylex from '@stylexjs/stylex';
 import { auth } from '@/styles/tokens.stylex';
-import AuthHeader from '@/components/AuthHeader';
-import SignupForm from '@/components/SignupForm';
+import AuthHeader from '@/components/auth/AuthHeader';
+import SignupForm from '@/components/auth/SignupForm';
 import TextLink from '@/components/TextLink';
 
 export const metadata: Metadata = {

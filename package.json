@@ -23,6 +23,7 @@
     "@stylexjs/eslint-plugin": "^0.19.1",
     "@stylexjs/postcss-plugin": "^0.19.1",
     "@tanstack/eslint-plugin-query": "^5.105.1",
+    "@types/apple-signin-api": "^1.5.3",
     "@types/google.accounts": "^0.0.18",
     "@types/node": "^20",
     "@types/react": "^19",
