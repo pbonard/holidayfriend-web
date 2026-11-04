@@ -3,6 +3,8 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+# git doesn't keep an empty public folder, and the image copies it below
+RUN mkdir -p public
 # NEXT_PUBLIC_ values are written into the browser code during the build, they can't be set at runtime
 ARG NEXT_PUBLIC_GOOGLE_SIGN_IN_WEB_CLIENT_ID
 ENV NEXT_PUBLIC_GOOGLE_SIGN_IN_WEB_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_SIGN_IN_WEB_CLIENT_ID
