@@ -3,9 +3,13 @@ on:
   push:
     branches:
       - main
+    # a manifest change only needs argo cd, not a new image
+    paths-ignore:
+      - k8s/**
+      - argocd/**
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
@@ -14,6 +18,10 @@ jobs:
     steps:
       - name: checkout github
         uses: actions/checkout@v6
+
+      # a broken pipeline script fails the run before anything is built or deployed
+      - name: test the pipeline scripts
+        run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -38,3 +46,16 @@ jobs:
             -t "$IMAGE:${GITHUB_SHA::7}" \
             -t "$IMAGE:latest" \
             . --push
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout github
+        uses: actions/checkout@v6
+        with:
+          # the full history tells whether this build is older than the deployed tag
+          fetch-depth: 0
+
+      - name: write the tag into the manifest
+        run: python3 .github/scripts/deploy_tag.py

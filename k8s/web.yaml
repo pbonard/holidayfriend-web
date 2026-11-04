@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: holidayfriend
+  labels:
+    app: web
+spec:
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      imagePullSecrets:
+        - name: ghcr
+      containers:
+        - name: web
+          # the web workflow writes the tag of each build here, argo cd deploys that commit
+          image: "ghcr.io/pbonard/holidayfriend/web:latest"
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: holidayfriend
+  labels:
+    app: web
+spec:
+  selector:
+    app: web
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+---
+# /auth goes to auth (the chart in my-server), every other path comes here: the gateway picks the longest matching prefix
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: web-route
+  namespace: holidayfriend
+  labels:
+    app: web
+spec:
+  parentRefs:
+    - name: cluster-gateway
+      namespace: envoy-gateway-system
+  hostnames:
+    - "holidayfriend.pbonard.com"
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: web
+          port: 80
+---
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: BackendTrafficPolicy
+metadata:
+  name: web-circuit-breaker
+  namespace: holidayfriend
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: web-route
+  circuitBreaker:
+    maxConnections: 100
+    maxPendingRequests: 100
+    maxParallelRequests: 100

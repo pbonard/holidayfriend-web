@@ -1,0 +1,25 @@
+# applied once by hand, kept out of k8s/ so the application doesn't manage itself
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: holidayfriend-web
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/pbonard/holidayfriend-web.git
+    targetRevision: main
+    path: k8s
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: holidayfriend
+  syncPolicy:
+    automated:
+      selfHeal: false
+      prune: false
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
