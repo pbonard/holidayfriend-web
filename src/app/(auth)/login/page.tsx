@@ -49,6 +49,11 @@ const styles = stylex.create({
     color: auth.muted,
   },
   terms: {
+    // without the form's box it lines up with the buttons, which are 1px off center to follow google's
+    position: 'relative',
+    left: { default: '1px', [breakpoints.desktop]: 0 },
+    maxWidth: { default: '260px', [breakpoints.desktop]: 'none' },
+    marginInline: { default: 'auto', [breakpoints.desktop]: 0 },
     marginTop: '24px',
     fontSize: '14px',
     lineHeight: 1.6,

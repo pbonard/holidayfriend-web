@@ -3,6 +3,7 @@
 import { useId } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import * as stylex from "@stylexjs/stylex";
+import { breakpoints } from "@/styles/tokens.stylex";
 import { field } from "@/styles/field";
 
 const EMAIL_PATTERN = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
@@ -60,10 +61,10 @@ const styles = stylex.create({
     left: "1px",
     alignSelf: "center",
     width: "100%",
-    maxWidth: "318px",
+    maxWidth: { default: "260px", [breakpoints.desktop]: "278px" },
   },
   control: {
-    height: "32px",
+    height: "40px",
     borderRadius: "4px",
   },
 });

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Script from 'next/script';
 import * as stylex from '@stylexjs/stylex';
+import { breakpoints } from '@/styles/tokens.stylex';
 import { field } from '@/styles/field';
 import { useSignInWithApple } from '@/hooks/useAuth';
 import AppleIcon from '@/components/icons/AppleIcon';
@@ -40,7 +41,7 @@ export default function AppleSignInButton() {
           xstyle={styles.button}
         >
           <span {...stylex.props(styles.tile)}>
-            <AppleIcon size={16} />
+            <AppleIcon size={18} />
           </span>
           Continue with Apple
         </Button>
@@ -64,8 +65,8 @@ const styles = stylex.create({
     position: 'relative',
     // google's button sits 1px off center inside its frame
     left: '1px',
-    maxWidth: '318px',
-    height: '32px',
+    maxWidth: { default: '260px', [breakpoints.desktop]: '278px' },
+    height: '40px',
     borderWidth: 0,
     borderRadius: '4px',
     backgroundColor: { default: '#202124', ':hover': '#303134' },
@@ -74,7 +75,7 @@ const styles = stylex.create({
     fontWeight: 500,
     letterSpacing: '0.25px',
     // google centers its text in the space right of the logo tile
-    paddingLeft: '28px',
+    paddingLeft: '36px',
     // no fading while the script loads, so it never looks different from google's button
     opacity: 1,
   },
@@ -85,8 +86,8 @@ const styles = stylex.create({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '32px',
-    height: '32px',
+    width: '40px',
+    height: '40px',
     color: '#ffffff',
   },
 });

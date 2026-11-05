@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { FormProvider, useForm } from 'react-hook-form';
 import * as stylex from '@stylexjs/stylex';
-import { auth } from '@/styles/tokens.stylex';
+import { auth, breakpoints } from '@/styles/tokens.stylex';
 import { useStartEmailLogin } from '@/hooks/useAuth';
 import AppleSignInButton from '@/components/auth/AppleSignInButton';
 import Button from '@/components/Button';
@@ -65,9 +65,11 @@ const styles = stylex.create({
   root: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '14px',
-    padding: '40px',
-    borderWidth: '0.5px',
+    gap: '16px',
+    // the box only frames the form next to the picture, without the picture the form stands alone
+    paddingBlock: { default: 0, [breakpoints.desktop]: '36px' },
+    paddingInline: { default: 0, [breakpoints.desktop]: '40px' },
+    borderWidth: { default: 0, [breakpoints.desktop]: '0.5px' },
     borderStyle: 'solid',
     borderColor: auth.border,
     borderRadius: '8px',
@@ -76,7 +78,7 @@ const styles = stylex.create({
   providers: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '8px',
+    gap: '12px',
   },
   divider: {
     fontSize: '14px',
@@ -92,9 +94,9 @@ const styles = stylex.create({
     position: 'relative',
     left: '1px',
     alignSelf: 'center',
-    maxWidth: '318px',
-    height: '32px',
-    marginTop: '10px',
+    maxWidth: { default: '260px', [breakpoints.desktop]: '278px' },
+    height: '40px',
+    marginTop: '12px',
     borderRadius: '4px',
     fontSize: '14px',
   },
