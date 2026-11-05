@@ -3,11 +3,10 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Script from 'next/script';
-import { useMutation } from '@tanstack/react-query';
 import * as stylex from '@stylexjs/stylex';
 import { field } from '@/styles/field';
-import { signInWithApple } from '@/api/auth';
-import AppleIcon from '@/components/auth/AppleIcon';
+import { useSignInWithApple } from '@/hooks/useAuth';
+import AppleIcon from '@/components/icons/AppleIcon';
 import Button from '@/components/Button';
 
 const CLIENT_ID = process.env.NEXT_PUBLIC_APPLE_SIGN_IN_CLIENT_ID;
@@ -21,22 +20,7 @@ function wasCancelled(error: unknown) {
 export default function AppleSignInButton() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
-  const signIn = useMutation({
-    mutationFn: async (clientId: string) => {
-      AppleID.auth.init({
-        clientId,
-        scope: 'email',
-        // popup mode never navigates here, but apple requires it to be registered on the services id
-        redirectURI: `${window.location.origin}/login`,
-        // the backend claims each nonce once, so a token can't be replayed
-        nonce: crypto.randomUUID(),
-        usePopup: true,
-      });
-      const { authorization } = await AppleID.auth.signIn();
-      await signInWithApple(authorization.id_token);
-    },
-    onSuccess: () => router.replace('/'),
-  });
+  const signInWithAppleMutation = useSignInWithApple();
 
   return (
     <div>
@@ -48,8 +32,11 @@ export default function AppleSignInButton() {
         <Button
           variant="secondary"
           // stays disabled until NEXT_PUBLIC_APPLE_SIGN_IN_CLIENT_ID is set
-          disabled={!CLIENT_ID || !ready || signIn.isPending}
-          onClick={() => CLIENT_ID && signIn.mutate(CLIENT_ID)}
+          disabled={!CLIENT_ID || !ready || signInWithAppleMutation.isPending}
+          onClick={() =>
+            CLIENT_ID &&
+            signInWithAppleMutation.mutate(CLIENT_ID, { onSuccess: () => router.replace('/') })
+          }
           xstyle={styles.button}
         >
           <span {...stylex.props(styles.tile)}>
@@ -58,7 +45,7 @@ export default function AppleSignInButton() {
           Continue with Apple
         </Button>
       </div>
-      {signIn.isError && !wasCancelled(signIn.error) && (
+      {signInWithAppleMutation.isError && !wasCancelled(signInWithAppleMutation.error) && (
         <p role="alert" {...stylex.props(field.error)}>
           Couldn&apos;t sign in with Apple. Please try again.
         </p>

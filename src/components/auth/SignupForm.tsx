@@ -1,8 +1,10 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { FormProvider, useForm } from 'react-hook-form';
 import * as stylex from '@stylexjs/stylex';
 import { auth } from '@/styles/tokens.stylex';
+import { useStartEmailLogin } from '@/hooks/useAuth';
 import AppleSignInButton from '@/components/auth/AppleSignInButton';
 import Button from '@/components/Button';
 import EmailInput from '@/components/auth/EmailInput';
@@ -13,16 +15,21 @@ interface FormValue {
 }
 
 export default function SignupForm() {
+  const router = useRouter();
   const emailSignupForm = useForm<FormValue>({
     defaultValues: {
       email: '',
     },
   });
 
-  const onSubmit = async (formValues: FormValue) => {
-    // no signup api yet, the email reaching here has already passed EmailInput's validation
-    void formValues;
-  };
+  const startEmailLoginMutation = useStartEmailLogin();
+
+  // the email reaching here has already passed EmailInput's validation
+  const onSubmit = ({ email }: FormValue) =>
+    startEmailLoginMutation.mutate(email, {
+      onSuccess: ({ isSignup }) => router.push(isSignup ? '/signup/code' : '/login/authenticator'),
+      onError: ({ message }) => emailSignupForm.setError('email', { message }),
+    });
 
   return (
     <div {...stylex.props(styles.root)}>
@@ -43,7 +50,7 @@ export default function SignupForm() {
           <EmailInput />
           <Button
             type="submit"
-            disabled={emailSignupForm.formState.isSubmitting}
+            disabled={startEmailLoginMutation.isPending}
             xstyle={styles.submit}
           >
             Continue with email

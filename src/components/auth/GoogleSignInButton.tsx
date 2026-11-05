@@ -3,10 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Script from 'next/script';
-import { useMutation } from '@tanstack/react-query';
 import * as stylex from '@stylexjs/stylex';
 import { field } from '@/styles/field';
-import { signInWithGoogle } from '@/api/auth';
+import { useSignInWithGoogle } from '@/hooks/useAuth';
 
 const MAX_BUTTON_WIDTH = 320; // the width of the form's controls, google draws its box 2px narrower
 const REDRAW_DELAY_MS = 150; // redraws load google's frame again, so not on every pixel of a resize
@@ -15,10 +14,7 @@ const REDRAW_DELAY_MS = 150; // redraws load google's frame again, so not on eve
 export default function GoogleSignInButton() {
   const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
-  const signIn = useMutation({
-    mutationFn: signInWithGoogle,
-    onSuccess: () => router.replace('/'),
-  });
+  const signInWithGoogleMutation = useSignInWithGoogle();
 
   const [initialized, setInitialized] = useState(false);
 
@@ -29,7 +25,10 @@ export default function GoogleSignInButton() {
     }
     google.accounts.id.initialize({
       client_id: clientId,
-      callback: ({ credential }) => signIn.mutate(credential),
+      callback: ({ credential }) =>
+        signInWithGoogleMutation.mutate(credential, {
+          onSuccess: () => router.replace('/'),
+        }),
     });
     setInitialized(true);
   };
@@ -77,7 +76,7 @@ export default function GoogleSignInButton() {
         onReady={initialize}
       />
       <div ref={containerRef} {...stylex.props(styles.button)} />
-      {signIn.isError && (
+      {signInWithGoogleMutation.isError && (
         <p role="alert" {...stylex.props(field.error)}>
           Couldn&apos;t sign in with Google. Please try again.
         </p>
