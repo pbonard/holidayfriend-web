@@ -69,7 +69,7 @@ const styles = stylex.create({
   },
   content: {
     width: '100%',
-    // the form's box: its 40px padding on both sides leaves the 320px google's button can use
-    maxWidth: '401px',
+    // the form's box: its 40px padding on both sides leaves the 280px google's button can use
+    maxWidth: '361px',
   },
 });

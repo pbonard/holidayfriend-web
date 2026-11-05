@@ -4,10 +4,10 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Script from 'next/script';
 import * as stylex from '@stylexjs/stylex';
+import { breakpoints } from '@/styles/tokens.stylex';
 import { field } from '@/styles/field';
 import { useSignInWithGoogle } from '@/hooks/useAuth';
 
-const MAX_BUTTON_WIDTH = 320; // the width of the form's controls, google draws its box 2px narrower
 const REDRAW_DELAY_MS = 150; // redraws load google's frame again, so not on every pixel of a resize
 
 // google only hands out an id token through its own rendered button, so this can't be our Button
@@ -46,13 +46,13 @@ export default function GoogleSignInButton() {
       google.accounts.id.renderButton(container, {
         type: 'standard',
         theme: 'filled_black',
-        size: 'medium',
+        size: 'large',
         text: 'continue_with',
         width,
       });
     };
     const observer = new ResizeObserver(() => {
-      const width = Math.min(container.offsetWidth, MAX_BUTTON_WIDTH);
+      const width = container.offsetWidth;
       if (width === drawnWidth) {
         return;
       }
@@ -90,7 +90,13 @@ const styles = stylex.create({
   button: {
     display: 'flex',
     justifyContent: 'center',
-    minHeight: '32px',
+    // the same box as the form's controls, google draws its button at the width it's given
+    position: 'relative',
+    left: '1px',
+    width: '100%',
+    maxWidth: { default: '260px', [breakpoints.desktop]: '278px' },
+    marginInline: 'auto',
+    minHeight: '40px',
     // the frame inside must not hold the column open when the window gets narrower
     contain: 'inline-size',
     overflow: 'hidden',
