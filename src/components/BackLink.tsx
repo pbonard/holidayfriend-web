@@ -1,22 +1,18 @@
-import Link from 'next/link';
+'use client';
+
+import { useRouter } from 'next/navigation';
 import * as stylex from '@stylexjs/stylex';
 import { auth } from '@/styles/tokens.stylex';
+import ChevronLeftIcon from '@/components/icons/ChevronLeftIcon';
 
-export default function BackLink({ href }: { href: string }) {
+export default function BackLink() {
+  const router = useRouter();
+
   return (
-    <Link href={href} {...stylex.props(styles.link)}>
-      <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
-        <path
-          d="M8.5 3 4.5 7l4 4"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+    <button type="button" onClick={() => router.back()} {...stylex.props(styles.link)}>
+      <ChevronLeftIcon />
       Back
-    </Link>
+    </button>
   );
 }
 
@@ -26,8 +22,13 @@ const styles = stylex.create({
     alignItems: 'center',
     gap: '8px',
     marginBottom: '36px',
+    padding: 0,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
+    fontFamily: 'inherit',
     fontSize: '16px',
     fontWeight: 600,
     color: { default: auth.link, ':hover': auth.text },
+    cursor: 'pointer',
   },
 });

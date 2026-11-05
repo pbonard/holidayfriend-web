@@ -6,7 +6,7 @@ import { getCountries, getCountryCallingCode } from 'libphonenumber-js';
 import * as stylex from '@stylexjs/stylex';
 import { auth } from '@/styles/tokens.stylex';
 import { field } from '@/styles/field';
-import ChevronDownIcon from '@/components/ChevronDownIcon';
+import ChevronDownIcon from '@/components/icons/ChevronDownIcon';
 
 // a native select, so phones open their own picker wheel or sheet
 export default function CountryCodeSelect() {
