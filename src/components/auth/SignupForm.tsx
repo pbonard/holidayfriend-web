@@ -65,7 +65,7 @@ const styles = stylex.create({
   root: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
+    gap: '24px',
     // the box only frames the form next to the picture, without the picture the form stands alone
     paddingBlock: { default: 0, [breakpoints.desktop]: '36px' },
     paddingInline: { default: 0, [breakpoints.desktop]: '40px' },
@@ -76,6 +76,8 @@ const styles = stylex.create({
     backgroundColor: 'transparent',
   },
   providers: {
+    // an error of either button shows below both of them, in the gap above "or"
+    position: 'relative',
     display: 'flex',
     flexDirection: 'column',
     gap: '12px',
@@ -96,7 +98,7 @@ const styles = stylex.create({
     alignSelf: 'center',
     maxWidth: { default: '260px', [breakpoints.desktop]: '278px' },
     height: '40px',
-    marginTop: '12px',
+    marginTop: '28px',
     borderRadius: '4px',
     fontSize: '14px',
   },

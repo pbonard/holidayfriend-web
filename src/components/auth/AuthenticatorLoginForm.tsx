@@ -59,26 +59,28 @@ export default function AuthenticatorLoginForm() {
           Log in
         </Button>
       </form>
-      <p {...stylex.props(styles.reset)}>
-        Lost your phone?
-        <button
-          type="button"
-          disabled={startAuthenticatorResetMutation.isPending}
-          onClick={() =>
-            startAuthenticatorResetMutation.mutate(undefined, {
-              onSuccess: () => router.push('/login/reset/code'),
-            })
-          }
-          {...stylex.props(styles.resetButton)}
-        >
-          Reset your authenticator
-        </button>
-      </p>
-      {startAuthenticatorResetMutation.error && (
-        <p role="alert" {...stylex.props(field.error)}>
-          {startAuthenticatorResetMutation.error.message}
+      <div {...stylex.props(field.root)}>
+        <p {...stylex.props(styles.reset)}>
+          Lost your phone?
+          <button
+            type="button"
+            disabled={startAuthenticatorResetMutation.isPending}
+            onClick={() =>
+              startAuthenticatorResetMutation.mutate(undefined, {
+                onSuccess: () => router.push('/login/reset/code'),
+              })
+            }
+            {...stylex.props(styles.resetButton)}
+          >
+            Reset your authenticator
+          </button>
         </p>
-      )}
+        {startAuthenticatorResetMutation.error && (
+          <p role="alert" {...stylex.props(field.error)}>
+            {startAuthenticatorResetMutation.error.message}
+          </p>
+        )}
+      </div>
     </FormProvider>
   );
 }
@@ -86,7 +88,7 @@ export default function AuthenticatorLoginForm() {
 const styles = stylex.create({
   submit: {
     height: '32px',
-    marginTop: '20px',
+    marginTop: '28px',
     borderRadius: '4px',
     fontSize: '14px',
   },
