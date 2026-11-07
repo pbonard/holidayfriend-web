@@ -4,6 +4,8 @@ import { auth } from '@/styles/tokens.stylex';
 // shared by every form field (email, phone, country code), so the inputs look alike
 export const field = stylex.create({
   root: {
+    // what field.error is placed against
+    position: 'relative',
     display: 'flex',
     flexDirection: 'column',
   },
@@ -32,9 +34,15 @@ export const field = stylex.create({
   controlError: {
     borderColor: auth.danger,
   },
+  // takes no space, so an error never moves what is around it: the space under a field has to fit its one line
   error: {
-    marginTop: '8px',
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: '4px',
     fontSize: '14px',
+    lineHeight: '20px',
     color: auth.danger,
   },
 });

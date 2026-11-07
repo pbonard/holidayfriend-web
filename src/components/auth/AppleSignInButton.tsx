@@ -36,7 +36,9 @@ export default function AppleSignInButton() {
           disabled={!CLIENT_ID || !ready || signInWithAppleMutation.isPending}
           onClick={() =>
             CLIENT_ID &&
-            signInWithAppleMutation.mutate(CLIENT_ID, { onSuccess: () => router.replace('/') })
+            signInWithAppleMutation.mutate(CLIENT_ID, {
+              onSuccess: () => router.replace('/'),
+            })
           }
           xstyle={styles.button}
         >
@@ -48,7 +50,7 @@ export default function AppleSignInButton() {
       </div>
       {signInWithAppleMutation.isError && !wasCancelled(signInWithAppleMutation.error) && (
         <p role="alert" {...stylex.props(field.error)}>
-          Couldn&apos;t sign in with Apple. Please try again.
+          Couldn&apos;t sign in. Please try again.
         </p>
       )}
     </div>

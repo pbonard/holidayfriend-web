@@ -29,7 +29,7 @@ export default function OTPInput() {
       render={({ field: { name, value, onChange, onBlur, ref }, fieldState: { error } }) => {
         const activeIndex = Math.min(value.length, LENGTH - 1);
         return (
-          <div>
+          <div {...stylex.props(field.root)}>
             <div {...stylex.props(styles.boxes)}>
               {Array.from({ length: LENGTH }, (_, index) => (
                 <div

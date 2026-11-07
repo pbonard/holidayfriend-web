@@ -49,7 +49,7 @@ export default function AuthenticatorSetupForm({ reset }: { reset?: boolean }) {
       },
       onError: () =>
         setupForm.setError('otp', {
-          message: 'That code is incorrect. Check the latest one in your app',
+          message: 'Incorrect code. Check the latest one in your app',
         }),
     });
 
@@ -73,7 +73,7 @@ export default function AuthenticatorSetupForm({ reset }: { reset?: boolean }) {
 const styles = stylex.create({
   submit: {
     height: '32px',
-    marginTop: '20px',
+    marginTop: '28px',
     borderRadius: '4px',
     fontSize: '14px',
   },

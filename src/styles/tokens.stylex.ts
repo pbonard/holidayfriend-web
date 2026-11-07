@@ -23,6 +23,11 @@ export const auth = stylex.defineVars({
   accentHover: '#8a4a38',
   link: '#e8a37c',
   danger: '#f07a6a',
+  // the darker page behind the profile setup's card
+  page: '#1f1e1c',
+  card: '#272624',
+  cardBorder: '#363431',
+  input: '#1b1a18',
 });
 
 export const breakpoints = stylex.defineConsts({

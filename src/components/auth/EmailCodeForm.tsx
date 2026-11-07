@@ -81,7 +81,7 @@ export default function EmailCodeForm({
 const styles = stylex.create({
   submit: {
     height: '32px',
-    marginTop: '20px',
+    marginTop: '28px',
     borderRadius: '4px',
     fontSize: '14px',
   },

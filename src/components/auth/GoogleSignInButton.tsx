@@ -78,7 +78,7 @@ export default function GoogleSignInButton() {
       <div ref={containerRef} {...stylex.props(styles.button)} />
       {signInWithGoogleMutation.isError && (
         <p role="alert" {...stylex.props(field.error)}>
-          Couldn&apos;t sign in with Google. Please try again.
+          Couldn&apos;t sign in. Please try again.
         </p>
       )}
     </div>

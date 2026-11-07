@@ -8,11 +8,11 @@ import {
   startEmailLogin,
   verifyEmailOTP,
 } from '@/api/auth';
+import { setAccessToken } from '@/api/axios';
 import { EMAIL, START_OVER, VERIFICATION_ID } from '@/constants';
 import { useAuthContext } from '@/contexts/AuthContext';
 
 export function useSignInWithGoogle() {
-  const { setAccessToken } = useAuthContext();
   return useMutation({
     mutationFn: signInWithGoogle,
     onSuccess: (data) => {
@@ -22,7 +22,6 @@ export function useSignInWithGoogle() {
 }
 
 export function useSignInWithApple() {
-  const { setAccessToken } = useAuthContext();
   return useMutation({
     mutationFn: async (clientId: string) => {
       AppleID.auth.init({
@@ -116,7 +115,7 @@ export function useVerifyEmailOTP() {
 }
 
 export function useConfirmAuthenticatorSetup() {
-  const { authenticatorSetup, setAccessToken } = useAuthContext();
+  const { authenticatorSetup } = useAuthContext();
   return useMutation({
     mutationFn: (code: string) => {
       if (!authenticatorSetup) {
@@ -132,7 +131,6 @@ export function useConfirmAuthenticatorSetup() {
 }
 
 export function useLoginWithAuthenticator() {
-  const { setAccessToken } = useAuthContext();
   return useMutation({
     mutationFn: (code: string) => {
       const email = sessionStorage.getItem(EMAIL);
