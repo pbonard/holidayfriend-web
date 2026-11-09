@@ -19,7 +19,6 @@ import SendIcon from '@/components/icons/SendIcon';
 import SuitcaseIcon from '@/components/icons/SuitcaseIcon';
 import AboutMeField from '@/components/onboarding/AboutMeField';
 import PromptRow from '@/components/onboarding/PromptRow';
-import StepHeader from '@/components/onboarding/StepHeader';
 
 const PROMPTS = [
   { name: 'grewUpIn', label: 'I grew up in', Icon: HomeIcon },
@@ -64,10 +63,6 @@ export default function AboutStep() {
 
   return (
     <>
-      <StepHeader
-        title="About you"
-        description="One of these may give people something to say hi about."
-      />
       <AboutMeField />
       <div {...stylex.props(styles.prompts)}>
         {PROMPTS.map((prompt) => (
