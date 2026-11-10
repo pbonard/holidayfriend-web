@@ -6,7 +6,7 @@ import * as stylex from '@stylexjs/stylex';
 import { NotLoggedInError } from '@/api/axios';
 import { useProfileStatus } from '@/hooks/useProfile';
 import { auth, spacing } from '@/styles/tokens.stylex';
-import Button from '@/components/Button';
+import ErrorText from '@/components/ErrorText';
 
 export default function AuthRoute() {
   const router = useRouter();
@@ -28,14 +28,12 @@ export default function AuthRoute() {
   if (profile.isError && !notLoggedIn) {
     return (
       <main {...stylex.props(styles.main)}>
-        <p role="alert">Couldn&apos;t load your account.</p>
-        <Button
-          disabled={profile.isFetching}
-          onClick={() => profile.refetch()}
+        <ErrorText
+          message="Couldn't load your account."
+          isRetrying={profile.isFetching}
+          onRetry={() => profile.refetch()}
           xstyle={styles.retry}
-        >
-          Try again
-        </Button>
+        />
       </main>
     );
   }
@@ -46,17 +44,14 @@ export default function AuthRoute() {
 const styles = stylex.create({
   main: {
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.md,
     minHeight: '100vh',
     padding: spacing.xl,
     color: auth.text,
   },
+  // in the middle of a screen of its own
   retry: {
-    width: '140px',
-    height: '40px',
-    fontSize: '14px',
+    alignItems: 'center',
   },
 });

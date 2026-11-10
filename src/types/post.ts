@@ -22,3 +22,23 @@ export interface CreatePostRequest {
   title: string;
   body: string;
 }
+
+export interface AuthorBasedIn {
+  country: string;
+  // null when the author shows only their country
+  city: string | null;
+}
+
+// one card of a city's feed, from GET /api/posts
+export interface PostFeedItem {
+  id: string;
+  role: PostRole;
+  title: string;
+  body: string;
+  authorName: string;
+  // where the author's profile is based in, as much as they show. null when they show neither or the profile is gone
+  authorBasedIn: AuthorBasedIn | null;
+  // every city of the post, the one being explored too. a local's post has just theirs
+  places: Place[];
+}
+

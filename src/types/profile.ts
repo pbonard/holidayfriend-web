@@ -1,3 +1,6 @@
+// how much of where they're based in shows on their posts. one value, so a city can't be shown without its country
+export type ShowBasedIn = 'city' | 'country' | 'none';
+
 export interface ProfileFormValue {
   name: string;
   basedInCountry: string;
@@ -11,4 +14,12 @@ export interface ProfileFormValue {
   bestTrip: string;
   birthDecade: string;
   funFact: string;
+  showBasedIn: ShowBasedIn;
+}
+
+// GET /api/profile: what a screen needs of the person logged in
+export interface ProfileBrief {
+  name: string;
+  basedInCountry: string;
+  basedInCity: string;
 }

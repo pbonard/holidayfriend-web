@@ -26,6 +26,7 @@ export default function OnboardingShell({ children }: { children: React.ReactNod
       bestTrip: '',
       birthDecade: '',
       funFact: '',
+      showBasedIn: 'city',
     },
   });
 

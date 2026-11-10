@@ -1,5 +1,5 @@
 import { axiosInstance } from '@/api/axios';
-import type { ProfileFormValue } from '@/types/profile';
+import type { ProfileBrief, ProfileFormValue } from '@/types/profile';
 
 // the server's own 404 body. matched exactly because a missing route is a 404 too, and that must not send someone to onboarding
 const PROFILE_NOT_FOUND = 'Profile not found';
@@ -18,4 +18,9 @@ export async function getProfileStatus(): Promise<{ hasProfile: boolean }> {
 
 export async function saveProfile(profile: ProfileFormValue): Promise<void> {
   await axiosInstance.put('/api/profile', profile);
+}
+
+export async function getMyProfileBrief(): Promise<ProfileBrief> {
+  const { data } = await axiosInstance.get('/api/profile');
+  return data;
 }
