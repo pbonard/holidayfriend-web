@@ -23,7 +23,8 @@ export const auth = stylex.defineVars({
   accentHover: '#8a4a38',
   link: '#e8a37c',
   danger: '#f07a6a',
-  // the darker page behind the profile setup's card
+  // the darker page behind the profile setup's card. also written out as themeColor in app/layout.tsx, change both:
+  // that one goes into a <meta> tag and can't read this variable, and defineVars can't take it from an import
   page: '#1f1e1c',
   card: '#272624',
   cardBorder: '#363431',
@@ -46,3 +47,10 @@ export const fonts = stylex.defineVars({
   sans: 'var(--font-google-sans), Roboto, Arial, sans-serif',
   mono: 'var(--font-geist-mono), ui-monospace, monospace',
 });
+
+// on <html>, which the root layout's inline script marks data-sidebar="collapsed" before the first paint:
+// the sidebar's collapsed styles are stylex.when.ancestor('[data-sidebar="collapsed"]', rootMarker)
+export const rootMarker = stylex.defineMarker();
+
+// on the login layout, whose panel is lighter: <html> takes that color with stylex.when.descendant
+export const surfaceMarker = stylex.defineMarker();

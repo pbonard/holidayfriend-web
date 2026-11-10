@@ -11,10 +11,12 @@
     padding: 0;
   }
 
+  /* clip and not hidden: hidden makes body a scroll container of its own, and position: sticky (the sidebar)
+     then sticks to body instead of the window and scrolls away with the page */
   html,
   body {
     max-width: 100vw;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   body {

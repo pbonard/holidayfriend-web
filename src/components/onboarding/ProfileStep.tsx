@@ -1,21 +1,24 @@
 'use client';
 
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useFormContext, useWatch } from 'react-hook-form';
+import { useController, useFormContext, useWatch } from 'react-hook-form';
 import * as stylex from '@stylexjs/stylex';
-import { CITIES_BY_COUNTRY, COUNTRIES } from '@/constants/location';
 import { auth, breakpoints } from '@/styles/tokens.stylex';
 import { field } from '@/styles/field';
 import type { ProfileFormValue } from '@/types/profile';
 import Button from '@/components/Button';
+import CitySearch from '@/components/CitySearch';
+import CloseIcon from '@/components/icons/CloseIcon';
+import MapPinIcon from '@/components/icons/MapPinIcon';
+import Toggle from '@/components/Toggle';
+import { placeLabel } from '@/utils/citySearch';
 
 export default function ProfileStep() {
   const router = useRouter();
   const nameErrorId = useId();
   const nameId = useId();
-  const countryErrorId = useId();
-  const cityErrorId = useId();
+  const basedInErrorId = useId();
   const {
     register,
     handleSubmit,
@@ -23,14 +26,34 @@ export default function ProfileStep() {
     formState: { errors },
   } = useFormContext<ProfileFormValue>();
   const nameError = errors.name?.message;
-  const countryError = errors.basedInCountry?.message;
-  const cityError = errors.basedInCity?.message;
+  // registered before the city below: a failed submit focuses the first field registered, and name is above it
+  const nameField = register('name', {
+    validate: (data) => data.trim().length > 0 || 'Enter your name',
+  });
   const basedInCountry = useWatch<ProfileFormValue, 'basedInCountry'>({
     name: 'basedInCountry',
   });
-  const basedInCity = useWatch<ProfileFormValue, 'basedInCity'>({
+  // one search for both: the city holds the rule and the error, and its ref is what a failed submit focuses
+  const {
+    field: { value: basedInCity, onChange: setBasedInCity, ref: basedInRef },
+    fieldState: { error: basedInError },
+  } = useController<ProfileFormValue, 'basedInCity'>({
     name: 'basedInCity',
+    rules: {
+      validate: (city, { basedInCountry: country }) =>
+        (Boolean(city) && Boolean(country)) || 'Select your city',
+    },
   });
+  const basedIn =
+    basedInCountry && basedInCity
+      ? { country: basedInCountry, city: basedInCity }
+      : null;
+  // after changing a picked city, the search opens with the keyboard up
+  const [changingBasedIn, setChangingBasedIn] = useState(false);
+  // two switches over one value: the city on turns the country on, the country off turns the city off
+  const {
+    field: { value: showBasedIn, onChange: setShowBasedIn },
+  } = useController<ProfileFormValue, 'showBasedIn'>({ name: 'showBasedIn' });
 
   return (
     <form
@@ -49,9 +72,7 @@ export default function ProfileStep() {
           aria-required="true"
           aria-invalid={nameError ? true : undefined}
           aria-describedby={nameError ? nameErrorId : undefined}
-          {...register('name', {
-            validate: (data) => data.trim().length > 0 || 'Enter your name',
-          })}
+          {...nameField}
           {...stylex.props(
             styles.control,
             styles.name,
@@ -69,72 +90,59 @@ export default function ProfileStep() {
         <legend {...stylex.props(styles.label)}>
           Currently based in <span {...stylex.props(styles.required)}>*</span>
         </legend>
-        <div {...stylex.props(styles.places)}>
-          <div {...stylex.props(field.root)}>
-            <select
-              aria-label="Country you're based in"
-              aria-required="true"
-              aria-invalid={countryError ? true : undefined}
-              aria-describedby={countryError ? countryErrorId : undefined}
-              {...register('basedInCountry', {
-                validate: (data) => Boolean(data) || 'Select your country',
-                // the city chosen belongs to the country before
-                onChange: () => setValue('basedInCity', ''),
-              })}
-              {...stylex.props(
-                styles.control,
-                !basedInCountry && styles.unselected,
-                countryError ? field.controlError : null,
-              )}
-            >
-              <option value="">Select country</option>
-              {COUNTRIES.map(({ code, name }) => (
-                <option key={code} value={code}>
-                  {name}
-                </option>
-              ))}
-            </select>
-            {countryError && (
-              <p
-                id={countryErrorId}
-                role="alert"
-                {...stylex.props(field.error)}
+        <div {...stylex.props(field.root)}>
+          {basedIn ? (
+            <div {...stylex.props(styles.picked)}>
+              <MapPinIcon size={18} xstyle={styles.pin} />
+              <span {...stylex.props(styles.pickedLabel)}>
+                {placeLabel(basedIn)}
+              </span>
+              <button
+                type="button"
+                aria-label={`Change ${placeLabel(basedIn)}`}
+                onClick={() => {
+                  setValue('basedInCountry', '');
+                  setBasedInCity('');
+                  setChangingBasedIn(true);
+                }}
+                {...stylex.props(styles.change)}
               >
-                {countryError}
-              </p>
-            )}
-          </div>
-          <div {...stylex.props(field.root)}>
-            <select
-              aria-label="City you're based in"
-              aria-required="true"
-              aria-invalid={cityError ? true : undefined}
-              aria-describedby={cityError ? cityErrorId : undefined}
-              disabled={!basedInCountry}
-              {...register('basedInCity', {
-                // it can't be chosen before the country, which has its own error
-                validate: (data, { basedInCountry: country }) =>
-                  !country || Boolean(data) || 'Select your city',
-              })}
-              {...stylex.props(
-                styles.control,
-                !basedInCity && styles.unselected,
-                cityError ? field.controlError : null,
-              )}
-            >
-              <option value="">Select city</option>
-              {(CITIES_BY_COUNTRY[basedInCountry] ?? []).map((city) => (
-                <option key={city} value={city}>
-                  {city}
-                </option>
-              ))}
-            </select>
-            {cityError && (
-              <p id={cityErrorId} role="alert" {...stylex.props(field.error)}>
-                {cityError}
-              </p>
-            )}
-          </div>
+                <CloseIcon size={16} />
+              </button>
+            </div>
+          ) : (
+            <CitySearch
+              label="Search your city"
+              autoFocus={changingBasedIn}
+              inputRef={basedInRef}
+              invalid={Boolean(basedInError)}
+              describedBy={basedInError ? basedInErrorId : undefined}
+              onPick={({ country, city }) => {
+                setValue('basedInCountry', country);
+                // through the controller, so the error goes once a city is picked
+                setBasedInCity(city);
+              }}
+            />
+          )}
+          {basedInError?.message && (
+            <p id={basedInErrorId} role="alert" {...stylex.props(field.error)}>
+              {basedInError.message}
+            </p>
+          )}
+        </div>
+        <div {...stylex.props(styles.visibility)}>
+          <Toggle
+            label="Show your country"
+            description="On your posts, so people from home can find you"
+            checked={showBasedIn !== 'none'}
+            onChange={(on) => setShowBasedIn(on ? 'country' : 'none')}
+          />
+          <Toggle
+            label="Show your city"
+            description="Shows your country too"
+            checked={showBasedIn === 'city'}
+            onChange={(on) => setShowBasedIn(on ? 'city' : 'country')}
+          />
         </div>
       </fieldset>
 
@@ -181,19 +189,50 @@ const styles = stylex.create({
   name: {
     backgroundColor: auth.input,
   },
-  unselected: {
-    color: auth.muted,
-  },
   basedIn: {
     marginTop: '36px',
     borderWidth: 0,
   },
-  places: {
-    display: 'grid',
-    gridTemplateColumns: { default: '1fr', [breakpoints.desktop]: '1fr 1fr' },
-    columnGap: '12px',
-    // stacked on phones, with room for the country's error
-    rowGap: '28px',
+  // the picked city, as tall as the search it replaces
+  picked: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    height: '48px',
+    paddingLeft: '16px',
+    paddingRight: '6px',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: auth.border,
+    borderRadius: '10px',
+    backgroundColor: auth.control,
+  },
+  pin: {
+    flexShrink: 0,
+    color: auth.muted,
+  },
+  pickedLabel: {
+    flexGrow: 1,
+    minWidth: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+    fontSize: '16px',
+  },
+  change: {
+    display: 'flex',
+    padding: '8px',
+    borderWidth: 0,
+    borderRadius: '8px',
+    backgroundColor: { default: 'transparent', ':hover': auth.border },
+    color: { default: auth.muted, ':hover': auth.text },
+    cursor: 'pointer',
+    outline: { default: 'none', ':focus-visible': `2px solid ${auth.link}` },
+  },
+  visibility: {
+    display: 'flex',
+    flexDirection: 'column',
+    marginTop: '28px',
   },
   actions: {
     display: 'flex',

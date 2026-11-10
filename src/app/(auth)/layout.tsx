@@ -1,13 +1,25 @@
 import Image from 'next/image';
 import * as stylex from '@stylexjs/stylex';
-import { auth, breakpoints, fonts } from '@/styles/tokens.stylex';
+import {
+  auth,
+  breakpoints,
+  fonts,
+  surfaceMarker,
+} from '@/styles/tokens.stylex';
 import { newsreader } from '@/styles/font';
 import loginHero from '@/assets/login-hero.jpeg';
 
 // the picture stays put on desktop while the steps swap on the right, phones only get the steps
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
+  const marker = stylex.props(surfaceMarker);
   return (
-    <div className={newsreader.variable}>
+    // surfaceMarker and data-page-background: the root layout gives <html> this panel's color while it's open,
+    // for the bounce past the page's ends
+    <div
+      {...marker}
+      className={`${newsreader.variable} ${marker.className ?? ''}`}
+      data-page-background="surface"
+    >
       <main {...stylex.props(styles.page)}>
         <section {...stylex.props(styles.panel)}>
           <div {...stylex.props(styles.content)}>{children}</div>

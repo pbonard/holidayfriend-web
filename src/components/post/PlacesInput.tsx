@@ -3,69 +3,18 @@
 import { useId, useState } from 'react';
 import { useController, useFormContext } from 'react-hook-form';
 import * as stylex from '@stylexjs/stylex';
-import { CITIES_BY_COUNTRY, COUNTRIES } from '@/constants/location';
 import { field as fieldStyles } from '@/styles/field';
+import { toneOf } from '@/styles/tones';
 import { auth } from '@/styles/tokens.stylex';
-import type { Place, PostFormValue } from '@/types/post';
+import type { PostFormValue } from '@/types/post';
 import CloseIcon from '@/components/icons/CloseIcon';
 import PlusIcon from '@/components/icons/PlusIcon';
-
-const MAX_RESULTS = 8;
-
-// lowercased and without accents, so "sao" finds São Paulo
-const normalize = (text: string) =>
-  text
-    .normalize('NFD')
-    // the accents NFD split off. not a unicode property escape: the babel the stylex plugin runs on fails on the Diacritic one
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase();
-
-type Option = Place & { label: string; cityKey: string; countryKey: string };
-
-// every city we have, as "City, Country"
-const OPTIONS: Option[] = COUNTRIES.flatMap(({ code, name }) =>
-  (CITIES_BY_COUNTRY[code] ?? []).map((city) => ({
-    country: code,
-    city,
-    label: `${city}, ${name}`,
-    cityKey: normalize(city),
-    countryKey: normalize(name),
-  })),
-);
-
-const COUNTRY_NAMES = new Map(COUNTRIES.map(({ code, name }) => [code, name]));
-
-const placeLabel = ({ country, city }: Place) =>
-  `${city}, ${COUNTRY_NAMES.get(country) ?? country}`;
-
-const samePlace = (a: Place, b: Place) =>
-  a.country === b.country && a.city === b.city;
-
-// cities starting with the query first, then cities containing it, then cities of a matching country
-function search(query: string, exclude: Place[]): Option[] {
-  const key = normalize(query.trim());
-  if (!key) {
-    return [];
-  }
-  const rank = (option: Option) => {
-    if (option.cityKey.startsWith(key)) return 0;
-    if (option.cityKey.includes(key)) return 1;
-    if (option.countryKey.startsWith(key)) return 2;
-    // "tokyo, ja" as typed out in full
-    if (`${option.cityKey}, ${option.countryKey}`.includes(key)) return 3;
-    return -1;
-  };
-  return OPTIONS.map((option) => ({ option, rank: rank(option) }))
-    .filter(
-      ({ option, rank }) =>
-        rank >= 0 && !exclude.some((place) => samePlace(place, option)),
-    )
-    .sort(
-      (a, b) => a.rank - b.rank || a.option.label.localeCompare(b.option.label),
-    )
-    .slice(0, MAX_RESULTS)
-    .map(({ option }) => option);
-}
+import {
+  type CityOption,
+  placeLabel,
+  samePlace,
+  searchCities,
+} from '@/utils/citySearch';
 
 // the places as chips, the + opens a search that only adds a city from the list
 export default function PlacesInput() {
@@ -89,7 +38,7 @@ export default function PlacesInput() {
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
 
-  const results = search(query, places);
+  const results = searchCities(query, places);
   const open = results.length > 0;
 
   const close = () => {
@@ -98,7 +47,7 @@ export default function PlacesInput() {
     setAdding(false);
   };
 
-  const pick = (option: Option) => {
+  const pick = (option: CityOption) => {
     onChange([...places, { country: option.country, city: option.city }]);
     close();
   };
@@ -188,30 +137,26 @@ export default function PlacesInput() {
             <PlusIcon size={16} />
           </button>
         )}
-        {places
-          .map((place, index) => ({ place, index }))
-          .reverse()
-          .map(({ place, index }) => {
-            const label = placeLabel(place);
-            return (
-              <span
-                key={`${place.country}-${place.city}`}
-                {...stylex.props(styles.chip, tones[index % tones.length])}
+        {/* the newest first, each in its own color, the same as on the explore cards */}
+        {[...places].reverse().map((place) => {
+          const label = placeLabel(place);
+          const key = `${place.country}-${place.city}`;
+          return (
+            <span key={key} {...stylex.props(styles.chip, toneOf(key))}>
+              {label}
+              <button
+                type="button"
+                aria-label={`Remove ${label}`}
+                onClick={() =>
+                  onChange(places.filter((value) => !samePlace(value, place)))
+                }
+                {...stylex.props(styles.remove)}
               >
-                {label}
-                <button
-                  type="button"
-                  aria-label={`Remove ${label}`}
-                  onClick={() =>
-                    onChange(places.filter((value) => !samePlace(value, place)))
-                  }
-                  {...stylex.props(styles.remove)}
-                >
-                  <CloseIcon size={14} />
-                </button>
-              </span>
-            );
-          })}
+                <CloseIcon size={14} />
+              </button>
+            </span>
+          );
+        })}
       </div>
       {error?.message && (
         <p id={errorId} role="alert" {...stylex.props(styles.error)}>
@@ -329,24 +274,3 @@ const styles = stylex.create({
     cursor: 'pointer',
   },
 });
-
-// a tint and text color per chip, so each place stands apart. picked by position, so they repeat past the last one
-const toneStyles = stylex.create({
-  rust: { backgroundColor: '#3a2a24', color: auth.link },
-  blue: { backgroundColor: '#24303a', color: '#9dc0e8' },
-  green: { backgroundColor: '#26322a', color: '#9fcfa8' },
-  purple: { backgroundColor: '#33263a', color: '#c9a3e0' },
-  yellow: { backgroundColor: '#37321f', color: '#e3c66f' },
-  pink: { backgroundColor: '#3a2430', color: '#e89ab8' },
-  teal: { backgroundColor: '#1f3433', color: '#84d1c8' },
-});
-
-const tones = [
-  toneStyles.rust,
-  toneStyles.blue,
-  toneStyles.green,
-  toneStyles.purple,
-  toneStyles.yellow,
-  toneStyles.pink,
-  toneStyles.teal,
-];

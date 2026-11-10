@@ -1,6 +1,6 @@
 import Sidebar from '@/components/Sidebar';
 
-export default function PostLayout({
+export default function PostsLayout({
   children,
 }: {
   children: React.ReactNode;
