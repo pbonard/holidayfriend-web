@@ -2,7 +2,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import * as stylex from '@stylexjs/stylex';
 import { toneOf } from '@/styles/tones';
-import { auth } from '@/styles/tokens.stylex';
+import { auth, breakpoints } from '@/styles/tokens.stylex';
 import type { Place, PostFeedItem } from '@/types/post';
 import HomeIcon from '@/components/icons/HomeIcon';
 import MapPinIcon from '@/components/icons/MapPinIcon';
@@ -215,13 +215,12 @@ const styles = stylex.create({
     outline: { default: 'none', ':focus-visible': `2px solid ${auth.link}` },
     outlineOffset: '2px',
   },
-  // a long body shows its first lines, the whole post is for a post's own page.
-  // its line breaks show as spaces (the default white-space), so blank lines between paragraphs don't use up the
-  // 4 lines of the preview
+  // the start of the body: 3 lines on a phone's narrow card, 6 on a desktop, and the browser adds … when there's
+  // more. its line breaks show as spaces (the default white-space), so the card stays one paragraph
   body: {
     display: '-webkit-box',
     WebkitBoxOrient: 'vertical',
-    WebkitLineClamp: 4,
+    WebkitLineClamp: { default: 3, [breakpoints.desktop]: 6 },
     overflow: 'hidden',
     fontSize: '15px',
     lineHeight: 1.55,
