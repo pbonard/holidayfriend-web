@@ -4,7 +4,6 @@ import { useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import * as stylex from '@stylexjs/stylex';
 import { auth, breakpoints, fonts, rootMarker } from '@/styles/tokens.stylex';
-import PlusIcon from '@/components/icons/PlusIcon';
 import SidebarCollapseIcon from '@/components/icons/SidebarCollapseIcon';
 import NavigationList from '@/components/NavigationList';
 import {
@@ -51,14 +50,6 @@ export default function Tab({ children }: { children: React.ReactNode }) {
             <SidebarCollapseIcon size={18} />
           </button>
         </div>
-        {/* a phone's only: a desktop's create button is the explore screen's create card */}
-        <Link
-          href="/post/create"
-          aria-label="Create post"
-          {...stylex.props(styles.create)}
-        >
-          <PlusIcon size={18} />
-        </Link>
         <NavigationList />
       </aside>
       <main {...stylex.props(styles.main)}>{children}</main>
@@ -85,7 +76,7 @@ const styles = stylex.create({
     color: auth.text,
     fontFamily: fonts.sans,
   },
-  // a phone's: one row, the mark on the left, the links and the create button on the right. a desktop's: a column the window's
+  // a phone's: one row, the mark on the left, the links on the right, creating a post the last. a desktop's: a column the window's
   // height, staying as the page scrolls
   sidebar: {
     position: { default: 'static', [breakpoints.desktop]: 'sticky' },
@@ -214,20 +205,6 @@ const styles = stylex.create({
       [stylex.when.ancestor('[data-sidebar="collapsed"]', rootMarker)]:
         'scaleX(-1)',
     },
-  },
-  // a square at the very end of a phone's bar (order), after the links and looking like them: nothing until it's
-  // hovered. none on a desktop
-  create: {
-    order: 1,
-    display: { default: 'flex', [breakpoints.desktop]: 'none' },
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '44px',
-    height: '44px',
-    borderRadius: '10px',
-    backgroundColor: { default: 'transparent', ':hover': auth.control },
-    color: auth.text,
-    transition: 'background-color 120ms ease',
   },
   main: {
     flexGrow: 1,

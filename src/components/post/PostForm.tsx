@@ -115,10 +115,8 @@ const styles = stylex.create({
     display: 'flex',
     justifyContent: 'flex-end',
     gap: '12px',
-    paddingTop: '24px',
-    borderTopWidth: '1px',
-    borderTopStyle: 'solid',
-    borderTopColor: auth.cardBorder,
+    // a little more than the card's gap between its fields, so the buttons read as the end of the form
+    paddingTop: '8px',
   },
   cancel: {
     width: '104px',

@@ -6,15 +6,27 @@ import { usePathname } from 'next/navigation';
 import * as stylex from '@stylexjs/stylex';
 import { auth, breakpoints, rootMarker } from '@/styles/tokens.stylex';
 import CompassIcon from '@/components/icons/CompassIcon';
+import InboxIcon from '@/components/icons/InboxIcon';
+import PlusIcon from '@/components/icons/PlusIcon';
 
 type NavItem = {
   href: string;
   label: string;
   Icon: typeof CompassIcon;
+  // at the end of a phone's bar, whatever its place in the sidebar
+  lastOnPhone?: boolean;
 };
 
 const NAV: NavItem[] = [
+  // the first in the sidebar, the last in a phone's bar
+  {
+    href: '/post/create',
+    label: 'Create post',
+    Icon: PlusIcon,
+    lastOnPhone: true,
+  },
   { href: '/explore', label: 'Explore', Icon: CompassIcon },
+  { href: '/invites', label: 'Invites', Icon: InboxIcon },
 ];
 
 // the sidebar's links, the current page's marked. the path is known while prerendering only on pages built
@@ -35,7 +47,7 @@ function CurrentNavLinks() {
 
 // the links, the one of pathname marked as the current page. none while it isn't known
 function NavLinks({ pathname }: { pathname: string | null }) {
-  return NAV.map(({ href, label, Icon }) => {
+  return NAV.map(({ href, label, Icon, lastOnPhone }) => {
     const active = pathname?.startsWith(href) ?? false;
     return (
       <Link
@@ -43,7 +55,11 @@ function NavLinks({ pathname }: { pathname: string | null }) {
         href={href}
         aria-label={label}
         aria-current={active ? 'page' : undefined}
-        {...stylex.props(styles.item, active && styles.itemActive)}
+        {...stylex.props(
+          styles.item,
+          active && styles.itemActive,
+          lastOnPhone && styles.lastOnPhone,
+        )}
       >
         <span {...stylex.props(styles.iconWrap)}>
           <Icon size={20} />
@@ -86,13 +102,21 @@ const styles = stylex.create({
         [stylex.when.ancestor('[data-sidebar="collapsed"]', rootMarker)]: 0,
       },
     },
+    // a line around the current one only. always there and unseen on the others, so nothing moves between them
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: 'transparent',
     borderRadius: '10px',
     fontSize: '16px',
     fontWeight: 600,
     color: { default: auth.text, ':hover': auth.text },
     backgroundColor: { default: 'transparent', ':hover': auth.control },
   },
+  lastOnPhone: {
+    order: { default: 1, [breakpoints.desktop]: 0 },
+  },
   itemActive: {
+    borderColor: auth.border,
     backgroundColor: auth.control,
   },
   iconWrap: {
