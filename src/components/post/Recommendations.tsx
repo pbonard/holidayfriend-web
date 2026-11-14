@@ -2,15 +2,15 @@
 
 import { useEffect } from 'react';
 import * as stylex from '@stylexjs/stylex';
+import { useEndReachedHorizontally } from '@/hooks/useEndReached';
 import { useGetPostDetail, useInfiniteCityPosts } from '@/hooks/usePost';
 import { useMyProfileBrief } from '@/hooks/useProfile';
 import { breakpoints } from '@/styles/tokens.stylex';
 import type { Place } from '@/types/post';
 import PostCard from '@/components/post/PostCard';
 
-// enough to fill the row past the screen's edge
-const ENOUGH = 6;
-// pages of the city's feed read for them at most, so a city with few of the role isn't read to its end
+// pages of the city's feed read for a first one at most, while there's no row to scroll yet, so a city with none of
+// the role isn't read to its end
 const MAX_PAGES = 4;
 
 // more posts of the city by the same kind of people as the post: travelers' under a traveler's, locals' under a
@@ -41,7 +41,11 @@ export default function Recommendations({
       )
     : [];
 
-  // the next page while the row is short and the city has more
+  // the next page as the row's end scrolls near its right edge. it also fills a row shorter than the screen: its
+  // end is in view, so the next page comes until it isn't or the city has no more
+  const { rowRef, endRef } = useEndReachedHorizontally(posts);
+
+  // no row to scroll while there's none of the role yet: a few more pages for a first one
   const pageCount = posts.data?.pages.length ?? 0;
   const {
     hasNextPage,
@@ -49,10 +53,10 @@ export default function Recommendations({
     isFetchNextPageError,
     fetchNextPage,
   } = posts;
-  const short = role !== undefined && recommended.length < ENOUGH;
+  const empty = role !== undefined && recommended.length === 0;
   useEffect(() => {
     if (
-      short &&
+      empty &&
       pageCount > 0 &&
       pageCount < MAX_PAGES &&
       hasNextPage &&
@@ -62,7 +66,7 @@ export default function Recommendations({
       fetchNextPage();
     }
   }, [
-    short,
+    empty,
     pageCount,
     hasNextPage,
     isFetchingNextPage,
@@ -78,12 +82,14 @@ export default function Recommendations({
   return (
     <section {...stylex.props(styles.section)}>
       <h2 {...stylex.props(styles.heading)}>Recommendations</h2>
-      <ul {...stylex.props(styles.row)}>
+      <ul ref={rowRef} {...stylex.props(styles.row)}>
         {recommended.map((post) => (
           <li key={post.id} {...stylex.props(styles.item)}>
             <PostCard post={post} place={place} myBasedIn={myBasedIn} />
           </li>
         ))}
+        {/* what the observer watches: the end of what's loaded. an li, the only child a list can have */}
+        <li ref={endRef} aria-hidden="true" {...stylex.props(styles.end)} />
       </ul>
     </section>
   );
@@ -116,5 +122,10 @@ const styles = stylex.create({
     // most of a phone's width, so the next card peeks in and says the row scrolls
     width: { default: '85%', [breakpoints.desktop]: '300px' },
     scrollSnapAlign: 'start',
+  },
+  // takes no room but the row's gap before it
+  end: {
+    flexShrink: 0,
+    width: '1px',
   },
 });

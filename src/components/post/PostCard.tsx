@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import * as stylex from '@stylexjs/stylex';
+import { ROLE_LABELS } from '@/constants';
 import { toneOf } from '@/styles/tones';
 import { auth, breakpoints, cardLinkMarker } from '@/styles/tokens.stylex';
 import type { Place, PostFeedItem } from '@/types/post';
@@ -13,8 +14,8 @@ import {
   postPath,
   samePlace,
 } from '@/utils/citySearch';
+import { profilePath } from '@/utils';
 
-const ROLE_LABELS = { local: 'Local', traveler: 'Traveler' } as const;
 // more would take over the card on a long trip, the rest open with the +n button. the post's page shows them all
 const MAX_CITIES = 3;
 
@@ -101,15 +102,30 @@ export default function PostCard({
       )}
     >
       <header {...stylex.props(styles.author)}>
-        <span
+        {/* the author's profile too, a bigger target than the name. the name's link is the one a screen reader
+            and the tab key get, this one would only say the same again */}
+        <Link
+          href={profilePath(post.authorId)}
           aria-hidden="true"
-          {...stylex.props(styles.avatar, detail && styles.detailAvatar)}
+          tabIndex={-1}
+          {...stylex.props(
+            styles.avatar,
+            detail && styles.detailAvatar,
+            styles.avatarLink,
+          )}
         >
           {initial}
-        </span>
+        </Link>
         <div>
+          {/* the author's profile. above the title link's ::after like the city tags, so it opens the profile
+              and not the post */}
           <p {...stylex.props(styles.name, detail && styles.detailName)}>
-            {post.authorName}
+            <Link
+              href={profilePath(post.authorId)}
+              {...stylex.props(styles.nameLink)}
+            >
+              {post.authorName}
+            </Link>
           </p>
           {/* "Traveler · ⌂ Based in Kyoto": the home icon and the accent say it's the viewer's home too */}
           <p {...stylex.props(styles.role, detail && styles.detailRole)}>
@@ -246,6 +262,24 @@ const styles = stylex.create({
   },
   detailName: {
     fontSize: '19px',
+  },
+  // above the title link's ::after as the name's link
+  avatarLink: {
+    position: 'relative',
+    zIndex: 1,
+    color: 'inherit',
+    textDecoration: 'none',
+    filter: { default: 'none', ':hover': 'brightness(1.25)' },
+    transition: 'filter 120ms ease',
+  },
+  nameLink: {
+    position: 'relative',
+    zIndex: 1,
+    color: 'inherit',
+    textDecoration: { default: 'none', ':hover': 'underline' },
+    outline: { default: 'none', ':focus-visible': `2px solid ${auth.link}` },
+    outlineOffset: '2px',
+    borderRadius: '4px',
   },
   // the role, and where the author is based in. wraps on a narrow card
   role: {

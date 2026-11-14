@@ -54,8 +54,11 @@ const styles = stylex.create({
   // what safari shows past the page's top and bottom when it bounces or pulls to refresh, and behind its floating
   // bars: <html>'s own color, so it's the pages' and not black or grey. the login pages' lighter one while they're
   // open. color-scheme tells safari the page is dark, for its own fallbacks and controls
+  // no bounce past the top and bottom: it stretched the whole page, the sticky sidebar with it, so the sidebar
+  // looked like it scrolled. also no pull to refresh, the cost of it
   html: {
     colorScheme: "dark",
+    overscrollBehaviorY: "none",
     backgroundColor: {
       default: auth.page,
       [stylex.when.descendant('[data-page-background="surface"]', surfaceMarker)]:

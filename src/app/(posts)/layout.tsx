@@ -1,9 +1,9 @@
-import Sidebar from '@/components/Sidebar';
+import Tab from '@/components/Tab';
 
 export default function PostsLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <Sidebar>{children}</Sidebar>;
+  return <Tab>{children}</Tab>;
 }
