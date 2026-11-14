@@ -5,6 +5,7 @@ import { ROLE_LABELS } from '@/constants';
 import { toneOf } from '@/styles/tones';
 import { auth, breakpoints, cardLinkMarker } from '@/styles/tokens.stylex';
 import type { Place, PostFeedItem } from '@/types/post';
+import PersonHeader from '@/components/PersonHeader';
 import HomeIcon from '@/components/icons/HomeIcon';
 import MapPinIcon from '@/components/icons/MapPinIcon';
 import {
@@ -14,7 +15,6 @@ import {
   postPath,
   samePlace,
 } from '@/utils/citySearch';
-import { profilePath } from '@/utils';
 
 // more would take over the card on a long trip, the rest open with the +n button. the post's page shows them all
 const MAX_CITIES = 3;
@@ -40,8 +40,6 @@ export default function PostCard({
   detail = false,
   actions,
 }: PostCardProps) {
-  // the first letter of the name in place of a photo, the profile has none yet
-  const initial = post.authorName.trim().charAt(0).toUpperCase() || '?';
   // the rest of the trip: the city it's seen from goes without saying
   const otherCities = post.places.filter((city) => !samePlace(city, place));
   const [showAllCities, setShowAllCities] = useState(detail);
@@ -102,49 +100,23 @@ export default function PostCard({
       )}
     >
       <header {...stylex.props(styles.author)}>
-        {/* the author's profile too, a bigger target than the name. the name's link is the one a screen reader
-            and the tab key get, this one would only say the same again */}
-        <Link
-          href={profilePath(post.authorId)}
-          aria-hidden="true"
-          tabIndex={-1}
-          {...stylex.props(
-            styles.avatar,
-            detail && styles.detailAvatar,
-            styles.avatarLink,
-          )}
-        >
-          {initial}
-        </Link>
-        <div>
-          {/* the author's profile. above the title link's ::after like the city tags, so it opens the profile
-              and not the post */}
-          <p {...stylex.props(styles.name, detail && styles.detailName)}>
-            <Link
-              href={profilePath(post.authorId)}
-              {...stylex.props(styles.nameLink)}
-            >
-              {post.authorName}
-            </Link>
-          </p>
+        <PersonHeader userId={post.authorId} name={post.authorName} large={detail}>
           {/* "Traveler · ⌂ Based in Kyoto": the home icon and the accent say it's the viewer's home too */}
-          <p {...stylex.props(styles.role, detail && styles.detailRole)}>
-            {ROLE_LABELS[post.role]}
-            {(fromHome || basedIn) && (
-              <span aria-hidden="true" {...stylex.props(styles.dot)}>
-                ·
-              </span>
-            )}
-            {fromHome ? (
-              <span {...stylex.props(styles.fromHome)}>
-                <HomeIcon size={13} xstyle={styles.homeIcon} />
-                {fromHome}
-              </span>
-            ) : (
-              basedIn
-            )}
-          </p>
-        </div>
+          {ROLE_LABELS[post.role]}
+          {(fromHome || basedIn) && (
+            <span aria-hidden="true" {...stylex.props(styles.dot)}>
+              ·
+            </span>
+          )}
+          {fromHome ? (
+            <span {...stylex.props(styles.fromHome)}>
+              <HomeIcon size={13} xstyle={styles.homeIcon} />
+              {fromHome}
+            </span>
+          ) : (
+            basedIn
+          )}
+        </PersonHeader>
       </header>
 
       {detail ? (
@@ -232,67 +204,9 @@ const styles = stylex.create({
     gridColumnStart: 1,
     gridColumnEnd: -1,
   },
+  // the author: on its own in a list card's column, beside the buttons on the post's page
   author: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '12px',
     minWidth: 0,
-  },
-  avatar: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    width: '44px',
-    height: '44px',
-    borderRadius: '50%',
-    backgroundColor: auth.control,
-    fontSize: '17px',
-    fontWeight: 700,
-  },
-  detailAvatar: {
-    width: '56px',
-    height: '56px',
-    fontSize: '20px',
-  },
-  name: {
-    fontSize: '16px',
-    fontWeight: 700,
-    lineHeight: 1.3,
-  },
-  detailName: {
-    fontSize: '19px',
-  },
-  // above the title link's ::after as the name's link
-  avatarLink: {
-    position: 'relative',
-    zIndex: 1,
-    color: 'inherit',
-    textDecoration: 'none',
-    filter: { default: 'none', ':hover': 'brightness(1.25)' },
-    transition: 'filter 120ms ease',
-  },
-  nameLink: {
-    position: 'relative',
-    zIndex: 1,
-    color: 'inherit',
-    textDecoration: { default: 'none', ':hover': 'underline' },
-    outline: { default: 'none', ':focus-visible': `2px solid ${auth.link}` },
-    outlineOffset: '2px',
-    borderRadius: '4px',
-  },
-  // the role, and where the author is based in. wraps on a narrow card
-  role: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    columnGap: '6px',
-    fontSize: '14px',
-    lineHeight: 1.3,
-    color: auth.muted,
-  },
-  detailRole: {
-    fontSize: '15px',
   },
   dot: {
     color: auth.placeholder,

@@ -17,4 +17,6 @@ export const queryKey = {
   GET_CITY_POSTS: 'getCityPosts',
   GET_USER_POSTS: 'getUserPosts',
   GET_POST_DETAIL: 'getPostDetail',
+  INVITE: 'invite',
+  GET_INVITES: 'getInvites',
 };
