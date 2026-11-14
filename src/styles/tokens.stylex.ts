@@ -54,3 +54,7 @@ export const rootMarker = stylex.defineMarker();
 
 // on the login layout, whose panel is lighter: <html> takes that color with stylex.when.descendant
 export const surfaceMarker = stylex.defineMarker();
+
+// on a card's main link, whose ::after covers the card: the card rings itself with stylex.when.descendant while
+// that link has the keyboard's focus, and not while one of its own tags or buttons has it
+export const cardLinkMarker = stylex.defineMarker();

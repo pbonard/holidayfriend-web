@@ -11,4 +11,5 @@ export const queryKey = {
   GET_MY_PROFILE_BRIEF: 'getMyProfileBrief',
   POST: 'post',
   GET_CITY_POSTS: 'getCityPosts',
+  GET_POST_DETAIL: 'getPostDetail',
 };

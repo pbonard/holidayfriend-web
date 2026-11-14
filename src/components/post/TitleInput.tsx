@@ -1,6 +1,6 @@
 'use client';
 
-import { useFormContext } from 'react-hook-form';
+import { Controller, useFormContext } from 'react-hook-form';
 import * as stylex from '@stylexjs/stylex';
 import { auth } from '@/styles/tokens.stylex';
 import type { PostFormValue } from '@/types/post';
@@ -11,33 +11,42 @@ const TITLE_MAX = 300;
 
 // a textarea and not an input, so a long title wraps and the box grows like the body's
 export default function TitleInput() {
-  const { register, setValue } = useFormContext<PostFormValue>();
+  const { control } = useFormContext<PostFormValue>();
 
   return (
-    <textarea
-      aria-label="Title"
-      placeholder="Title"
-      rows={1}
-      maxLength={TITLE_MAX}
-      // a title is one line: enter doesn't break it
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') {
-          event.preventDefault();
-        }
-      }}
-      {...register('title', {
-        required: true,
-        onChange: (event) => {
-          const textarea: HTMLTextAreaElement = event.target;
-          // pasting can still bring line breaks in, so they become spaces
-          if (/[\r\n]/.test(textarea.value)) {
-            textarea.value = textarea.value.replace(/\s*[\r\n]+\s*/g, ' ');
-            setValue('title', textarea.value);
-          }
-          fitToContent(textarea);
-        },
-      })}
-      {...stylex.props(styles.title)}
+    <Controller
+      name="title"
+      control={control}
+      rules={{ validate: (data) => data.trim().length > 0 }}
+      render={({ field: { name, value, onChange, onBlur, ref } }) => (
+        <textarea
+          aria-label="Title"
+          placeholder="Title"
+          rows={1}
+          maxLength={TITLE_MAX}
+          ref={ref}
+          name={name}
+          value={value}
+          // a title is one line: enter doesn't break it
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+            }
+          }}
+          onChange={(event) => {
+            const textarea = event.target;
+            // pasting can still bring line breaks in, so they become spaces. set on the box too, so it's measured
+            // as it'll show. only then: setting the value moves the caret to the end
+            if (/[\r\n]/.test(textarea.value)) {
+              textarea.value = textarea.value.replace(/\s*[\r\n]+\s*/g, ' ');
+            }
+            onChange(textarea.value);
+            fitToContent(textarea);
+          }}
+          onBlur={onBlur}
+          {...stylex.props(styles.title)}
+        />
+      )}
     />
   );
 }

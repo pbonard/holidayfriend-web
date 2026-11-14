@@ -1,6 +1,6 @@
 'use client';
 
-import { useFormContext, useWatch } from 'react-hook-form';
+import { Controller, useFormContext } from 'react-hook-form';
 import * as stylex from '@stylexjs/stylex';
 import { auth } from '@/styles/tokens.stylex';
 import type { PostFormValue, PostRole } from '@/types/post';
@@ -11,23 +11,31 @@ const ROLES: { value: PostRole; label: string }[] = [
 ];
 
 export default function RoleInput() {
-  const { control, setValue } = useFormContext<PostFormValue>();
-  const role = useWatch({ control, name: 'role' });
+  const { control } = useFormContext<PostFormValue>();
 
   return (
-    <div role="group" aria-label="I am a" {...stylex.props(styles.roles)}>
-      {ROLES.map(({ value, label }) => (
-        <button
-          key={value}
-          type="button"
-          aria-pressed={role === value}
-          onClick={() => setValue('role', value)}
-          {...stylex.props(styles.role, role === value && styles.roleSelected)}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
+    <Controller
+      name="role"
+      control={control}
+      render={({ field: { value: role, onChange } }) => (
+        <div role="group" aria-label="I am a" {...stylex.props(styles.roles)}>
+          {ROLES.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={role === value}
+              onClick={() => onChange(value)}
+              {...stylex.props(
+                styles.role,
+                role === value && styles.roleSelected,
+              )}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+    />
   );
 }
 

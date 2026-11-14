@@ -1,7 +1,6 @@
-import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import Explore from '@/components/explore/Explore';
+import Explore from '@/components/post/Explore';
 import { CITIES_BY_COUNTRY } from '@/constants/cities';
 import { citySlug, placeFromPath, placeLabel } from '@/utils/citySearch';
 
@@ -37,9 +36,5 @@ export default async function ExploreCityPage({ params }: { params: Params }) {
   if (!placeFromPath(country, city)) {
     notFound();
   }
-  return (
-    <Suspense>
-      <Explore />
-    </Suspense>
-  );
+  return <Explore />;
 }

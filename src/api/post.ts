@@ -1,10 +1,15 @@
 import { axiosInstance } from '@/api/axios';
-import type { CreatePostRequest, Place, PostFeedItem } from '@/types/post';
+import type {
+  CreatePostRequest,
+  Place,
+  PostDetail,
+  PostFeedItem,
+} from '@/types/post';
 
 export async function createPost(
   request: CreatePostRequest,
 ): Promise<{ id: string }> {
-  const { data } = await axiosInstance.post('/api/posts', request);
+  const { data } = await axiosInstance.post('/api/post', request);
   return data;
 }
 
@@ -17,8 +22,14 @@ export async function listPosts(
   place: Place,
   before?: string,
 ): Promise<PostFeedItem[]> {
-  const { data } = await axiosInstance.get('/api/posts', {
+  const { data } = await axiosInstance.get('/api/post/list', {
     params: { country: place.country, city: place.city, before },
   });
+  return data;
+}
+
+// a post with its whole body. a post that's gone is the error "Post not found"
+export async function getPostDetail(id: string): Promise<PostDetail> {
+  const { data } = await axiosInstance.get(`/api/post/${id}`);
   return data;
 }

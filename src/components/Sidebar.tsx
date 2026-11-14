@@ -2,32 +2,20 @@
 
 import { useSyncExternalStore } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import * as stylex from '@stylexjs/stylex';
 import { auth, breakpoints, fonts, rootMarker } from '@/styles/tokens.stylex';
-import CompassIcon from '@/components/icons/CompassIcon';
 import PlusIcon from '@/components/icons/PlusIcon';
 import SidebarCollapseIcon from '@/components/icons/SidebarCollapseIcon';
+import NavigationList from '@/components/NavigationList';
 import {
   isSidebarCollapsed,
   setSidebarCollapsed,
   subscribeSidebar,
 } from '@/utils/sidebar';
 
-type NavItem = {
-  href: string;
-  label: string;
-  Icon: typeof CompassIcon;
-};
-
-const NAV: NavItem[] = [
-  { href: '/explore', label: 'Explore', Icon: CompassIcon },
-];
-
 // the collapsed look comes from <html data-sidebar="collapsed"> (the when.ancestor keys below): that attribute is set before the
 // first paint, this component's state only once react has loaded, so the state is only for the toggle's label
 export default function Sidebar({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
   // false while prerendering, the attribute once in the browser
   const collapsed = useSyncExternalStore(
     subscribeSidebar,
@@ -58,25 +46,7 @@ export default function Sidebar({ children }: { children: React.ReactNode }) {
           <PlusIcon size={18} />
           <span {...stylex.props(styles.label)}>Create post</span>
         </Link>
-        <nav {...stylex.props(styles.nav)}>
-          {NAV.map(({ href, label, Icon }) => {
-            const active = pathname.startsWith(href);
-            return (
-              <Link
-                key={href}
-                href={href}
-                aria-label={label}
-                aria-current={active ? 'page' : undefined}
-                {...stylex.props(styles.item, active && styles.itemActive)}
-              >
-                <span {...stylex.props(styles.iconWrap)}>
-                  <Icon size={20} />
-                </span>
-                <span {...stylex.props(styles.label)}>{label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        <NavigationList />
       </aside>
       <main {...stylex.props(styles.main)}>{children}</main>
     </div>
@@ -195,44 +165,6 @@ const styles = stylex.create({
     fontWeight: 700,
     marginBottom: '12px',
     transition: 'background-color 120ms ease',
-  },
-  nav: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '4px',
-  },
-  item: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: {
-      default: 'center',
-      [breakpoints.desktop]: {
-        default: 'flex-start',
-        [stylex.when.ancestor('[data-sidebar="collapsed"]', rootMarker)]:
-          'center',
-      },
-    },
-    gap: '12px',
-    height: '44px',
-    paddingInline: {
-      default: 0,
-      [breakpoints.desktop]: {
-        default: '12px',
-        [stylex.when.ancestor('[data-sidebar="collapsed"]', rootMarker)]: 0,
-      },
-    },
-    borderRadius: '10px',
-    fontSize: '16px',
-    fontWeight: 600,
-    color: { default: auth.text, ':hover': auth.text },
-    backgroundColor: { default: 'transparent', ':hover': auth.control },
-  },
-  itemActive: {
-    backgroundColor: auth.control,
-  },
-  iconWrap: {
-    position: 'relative',
-    display: 'flex',
   },
   label: {
     display: {

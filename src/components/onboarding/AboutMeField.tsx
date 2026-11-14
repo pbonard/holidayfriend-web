@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useFormContext } from 'react-hook-form';
+import { Controller, useFormContext } from 'react-hook-form';
 import * as stylex from '@stylexjs/stylex';
 import { auth } from '@/styles/tokens.stylex';
 import type { ProfileFormValue } from '@/types/profile';
@@ -9,25 +9,43 @@ import type { ProfileFormValue } from '@/types/profile';
 const HINT = "A few lines so people know who they're saying hi to.";
 
 export default function AboutMeField() {
-  const { register, getValues } = useFormContext<ProfileFormValue>();
+  const { control } = useFormContext<ProfileFormValue>();
   const [writing, setWriting] = useState(false);
 
-  return writing || getValues('aboutMe') ? (
-    <textarea
-      aria-label="About me"
-      autoFocus
-      rows={3}
-      maxLength={300}
-      placeholder={HINT}
-      {...register('aboutMe', {
-        onBlur: (event) => setWriting(event.target.value.trim().length > 0),
-      })}
-      {...stylex.props(styles.textarea)}
+  return (
+    <Controller
+      name="aboutMe"
+      control={control}
+      render={({ field: { name, value, onChange, onBlur, ref } }) =>
+        // the hint until there's something to show, a written one stays open
+        writing || value ? (
+          <textarea
+            aria-label="About me"
+            autoFocus
+            rows={3}
+            maxLength={300}
+            placeholder={HINT}
+            ref={ref}
+            name={name}
+            value={value}
+            onChange={onChange}
+            onBlur={(event) => {
+              onBlur();
+              setWriting(event.target.value.trim().length > 0);
+            }}
+            {...stylex.props(styles.textarea)}
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={() => setWriting(true)}
+            {...stylex.props(styles.hint)}
+          >
+            {HINT}
+          </button>
+        )
+      }
     />
-  ) : (
-    <button type="button" onClick={() => setWriting(true)} {...stylex.props(styles.hint)}>
-      {HINT}
-    </button>
   );
 }
 

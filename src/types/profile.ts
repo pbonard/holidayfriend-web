@@ -19,6 +19,8 @@ export interface ProfileFormValue {
 
 // GET /api/profile: what a screen needs of the person logged in
 export interface ProfileBrief {
+  // their own posts are told by it, e.g. no "Say hi" on them
+  id: string;
   name: string;
   basedInCountry: string;
   basedInCity: string;
