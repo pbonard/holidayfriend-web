@@ -1,5 +1,5 @@
 import { CITIES_BY_COUNTRY, COUNTRIES } from '@/constants/cities';
-import type { Place } from '@/types/post';
+import type { AuthorBasedIn, Place } from '@/types/post';
 
 // the city search of the post form's places and the explore screen, over the cities of CITIES_BY_COUNTRY
 const MAX_RESULTS = 8;
@@ -40,6 +40,11 @@ export function countryName(country: string) {
 
 export function placeLabel({ country, city }: Place) {
   return `${city}, ${COUNTRY_NAMES.get(country) ?? country}`;
+}
+
+// where an author is based in as they show it: "Tokyo, Japan", or "Japan" when they show only the country
+export function basedInLabel({ country, city }: AuthorBasedIn) {
+  return city ? `${city}, ${countryName(country)}` : countryName(country);
 }
 
 export function samePlace(a: Place, b: Place) {
@@ -87,6 +92,12 @@ export function citySlug(city: string) {
 // the explore screen of a city, /explore/jp/tokyo
 export function explorePath({ country, city }: Place) {
   return `/explore/${country.toLowerCase()}/${citySlug(city)}`;
+}
+
+// a post's page from the city it was found in, /explore/jp/tokyo/{id}: back goes to that city, and the
+// recommendations are of it
+export function postPath(place: Place, id: string) {
+  return `${explorePath(place)}/${id}`;
 }
 
 // the city of /explore/jp/tokyo, null when the path isn't one of the list's cities

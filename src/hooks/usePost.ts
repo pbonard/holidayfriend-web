@@ -1,10 +1,11 @@
 import {
   useInfiniteQuery,
   useMutation,
+  useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
 import { queryKey } from '@/constants';
-import { createPost, listPosts, POST_PAGE_SIZE } from '@/api/post';
+import { createPost, getPostDetail, listPosts, POST_PAGE_SIZE } from '@/api/post';
 import type { Place } from '@/types/post';
 
 export function useCreatePost() {
@@ -30,5 +31,13 @@ export function useInfiniteCityPosts(place: Place | null) {
     // a short page is the last, so there's no request for an empty one
     getNextPageParam: (lastPage) =>
       lastPage.length < POST_PAGE_SIZE ? undefined : lastPage.at(-1)?.id,
+  });
+}
+
+// a post's own page
+export function useGetPostDetail(id: string) {
+  return useQuery({
+    queryKey: [queryKey.POST, queryKey.GET_POST_DETAIL, id],
+    queryFn: () => getPostDetail(id),
   });
 }

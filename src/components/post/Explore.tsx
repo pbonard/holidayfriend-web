@@ -11,9 +11,9 @@ import type { Place, PostRole } from '@/types/post';
 import CitySearch from '@/components/CitySearch';
 import ErrorText from '@/components/ErrorText';
 import StatusText from '@/components/StatusText';
-import CreatePostCard from '@/components/explore/CreatePostCard';
-import PostCard from '@/components/explore/PostCard';
-import RoleTabs from '@/components/explore/RoleTabs';
+import CreatePostCard from '@/components/post/CreatePostCard';
+import PostCard from '@/components/post/PostCard';
+import RoleTabs from '@/components/RoleTabs';
 import { explorePath, placeFromPath, placeLabel } from '@/utils/citySearch';
 import { readLastExplored, saveLastExplored } from '@/utils/lastExplored';
 

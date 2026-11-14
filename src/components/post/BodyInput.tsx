@@ -1,6 +1,6 @@
 'use client';
 
-import { useFormContext } from 'react-hook-form';
+import { Controller, useFormContext } from 'react-hook-form';
 import * as stylex from '@stylexjs/stylex';
 import { auth } from '@/styles/tokens.stylex';
 import type { PostFormValue } from '@/types/post';
@@ -10,19 +10,30 @@ import { fitToContent } from '@/utils';
 const BODY_MAX = 40_000;
 
 export default function BodyInput() {
-  const { register } = useFormContext<PostFormValue>();
+  const { control } = useFormContext<PostFormValue>();
 
   return (
-    <textarea
-      aria-label="Body"
-      placeholder="Body"
-      rows={5}
-      maxLength={BODY_MAX}
-      {...register('body', {
-        required: true,
-        onChange: (event) => fitToContent(event.target),
-      })}
-      {...stylex.props(styles.body)}
+    <Controller
+      name="body"
+      control={control}
+      rules={{ validate: (data) => data.trim().length > 0 }}
+      render={({ field: { name, value, onChange, onBlur, ref } }) => (
+        <textarea
+          aria-label="Body"
+          placeholder="Body"
+          rows={5}
+          maxLength={BODY_MAX}
+          ref={ref}
+          name={name}
+          value={value}
+          onChange={(event) => {
+            onChange(event);
+            fitToContent(event.target);
+          }}
+          onBlur={onBlur}
+          {...stylex.props(styles.body)}
+        />
+      )}
     />
   );
 }
