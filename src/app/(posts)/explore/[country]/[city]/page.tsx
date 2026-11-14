@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Explore from '@/components/post/Explore';
@@ -30,8 +31,18 @@ export async function generateMetadata({
   };
 }
 
-// /explore/jp/tokyo, the screen reads the city from the path itself. a path that isn't a city of the list is a 404
-export default async function ExploreCityPage({ params }: { params: Params }) {
+// /explore/jp/tokyo, the screen reads the city from the path itself. a path that isn't a city of the list is a 404.
+// the path is read inside the page's own suspense: the explore layout's is already on screen when going from one
+// city to another, so it can't show while this one waits, and the navigation would wait for it
+export default function ExploreCityPage({ params }: { params: Params }) {
+  return (
+    <Suspense>
+      <ExploreCity params={params} />
+    </Suspense>
+  );
+}
+
+async function ExploreCity({ params }: { params: Params }) {
   const { country, city } = await params;
   if (!placeFromPath(country, city)) {
     notFound();

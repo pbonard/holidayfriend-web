@@ -1,10 +1,12 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import * as stylex from '@stylexjs/stylex';
 import { NotLoggedInError } from '@/api/axios';
+import { useEndReached } from '@/hooks/useEndReached';
 import { useInfiniteCityPosts } from '@/hooks/usePost';
+import { useScrolled } from '@/hooks/useScrolled';
 import { useMyProfileBrief } from '@/hooks/useProfile';
 import { auth, breakpoints } from '@/styles/tokens.stylex';
 import type { Place, PostRole } from '@/types/post';
@@ -55,32 +57,13 @@ export default function Explore() {
     ? loaded.filter((post) => post.role === role)
     : loaded;
 
-  // the next page as the end of the list scrolls near, like a list's onEndReached
-  const {
-    hasNextPage,
-    isFetchingNextPage,
-    isFetchNextPageError,
-    fetchNextPage,
-  } = posts;
-  const endRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const end = endRef.current;
-    // a failed page waits for its retry button instead of asking again on every scroll
-    if (!end || !hasNextPage || isFetchingNextPage || isFetchNextPageError) {
-      return;
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          fetchNextPage();
-        }
-      },
-      // a screen ahead, so the next posts are usually there before they're scrolled to
-      { rootMargin: '0px 0px 600px 0px' },
-    );
-    observer.observe(end);
-    return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage]);
+  const { hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage } =
+    posts;
+  const endRef = useEndReached(posts);
+
+  // the desktop's search sticks from the very top, so from the first pixel scrolled the posts go under it and it
+  // shows a line under itself
+  const scrolled = useScrolled();
 
   // kept as the city to come back to. strings and not place, which is a new object every render
   const placeCountry = place?.country;
@@ -127,31 +110,48 @@ export default function Explore() {
     return null;
   }
 
-  return (
+  const title = (
     <>
-      <header {...stylex.props(styles.header)}>
-        <div>
-          <p {...stylex.props(styles.eyebrow)}>Exploring</p>
-          <h1 {...stylex.props(styles.title)}>
-            {place ? placeLabel(place) : ' '}
-          </h1>
-        </div>
-        <div {...stylex.props(styles.search)}>
-          {/* a new city is a new page to go back from, keeping the tab */}
-          <CitySearch onPick={(next) => show(next, role, true)} />
-        </div>
-      </header>
+      <p {...stylex.props(styles.eyebrow)}>Currently exploring</p>
+      <h1 {...stylex.props(styles.title)}>
+        {place ? placeLabel(place) : ' '}
+      </h1>
+    </>
+  );
+  // a new city is a new page to go back from, keeping the tab
+  const search = <CitySearch onPick={(next) => show(next, role, true)} />;
+  const tabs = (
+    <RoleTabs
+      role={role}
+      // a tab only filters the same city, so it replaces the entry instead of adding one
+      onChange={(nextRole) => place && show(place, nextRole, false)}
+    />
+  );
 
-      <div {...stylex.props(styles.tabs)}>
-        <RoleTabs
-          role={role}
-          // a tab only filters the same city, so it replaces the entry instead of adding one
-          onChange={(nextRole) => place && show(place, nextRole, false)}
-        />
+  // one of each, in two layouts. a desktop's: the side column (the city, the tabs, the create card) on the right,
+  // staying, and the search above the posts on the left, staying too. a phone's: one column, search, city and tabs,
+  // posts, create card. there the two columns' boxes step aside (display: contents) and their pieces line up by
+  // order. the side comes first in the page, so its h1 is the first thing read
+  return (
+    <div {...stylex.props(styles.content)}>
+      <div {...stylex.props(styles.side)}>
+        <div {...stylex.props(styles.heading)}>
+          {title}
+          <div {...stylex.props(styles.tabs)}>{tabs}</div>
+        </div>
+        {place && (
+          <div {...stylex.props(styles.create)}>
+            <CreatePostCard city={place.city} />
+          </div>
+        )}
       </div>
 
-      <div {...stylex.props(styles.content)}>
-        <div {...stylex.props(styles.feed)}>
+      <div {...stylex.props(styles.feed)}>
+        {/* stays above the posts as they scroll under it on a desktop, scrolls away with them on a phone */}
+        <div {...stylex.props(styles.search, scrolled && styles.searchScrolled)}>
+          {search}
+        </div>
+        <div {...stylex.props(styles.posts)}>
           {place === null ? (
             // only /explore, the page of a city that isn't listed is a 404
             myProfile.isError ? (
@@ -207,61 +207,91 @@ export default function Explore() {
             </>
           )}
         </div>
-        {place && (
-          <aside {...stylex.props(styles.aside)}>
-            <CreatePostCard city={place.city} />
-          </aside>
-        )}
       </div>
-    </>
+    </div>
   );
 }
 
 const styles = stylex.create({
-  // the search under the title on a phone, on its right on a desktop
-  header: {
-    display: 'flex',
-    flexDirection: { default: 'column', [breakpoints.desktop]: 'row' },
-    alignItems: { default: 'stretch', [breakpoints.desktop]: 'flex-start' },
-    justifyContent: 'space-between',
-    gap: { default: '16px', [breakpoints.desktop]: '24px' },
+  // the posts and the side column beside them on a desktop. the side column fits the three tabs on a big screen,
+  // narrower with the window, where the tabs scroll sideways
+  content: {
+    display: 'grid',
+    gridTemplateColumns: {
+      default: 'minmax(0, 1fr)',
+      [breakpoints.desktop]: 'minmax(0, 1fr) clamp(300px, 26vw, 360px)',
+    },
+    alignItems: 'start',
+    columnGap: '24px',
   },
+  // a desktop's right column, staying as the posts scroll, as far from the window's top as main's padding
+  side: {
+    display: { default: 'contents', [breakpoints.desktop]: 'block' },
+    gridColumnStart: 2,
+    gridRowStart: 1,
+    position: { default: 'static', [breakpoints.desktop]: 'sticky' },
+    top: '36px',
+  },
+  // the city and the tabs: under the search on a phone, at the top of the side column on a desktop
+  heading: {
+    order: 1,
+    marginTop: { default: '24px', [breakpoints.desktop]: 0 },
+    marginBottom: '20px',
+  },
+  // the small line over the city
   eyebrow: {
     fontSize: '15px',
     fontWeight: 500,
     color: auth.muted,
   },
+  // smaller in the side column on a desktop, where a long city wraps instead of widening it
   title: {
     marginTop: '2px',
-    fontSize: { default: '34px', [breakpoints.desktop]: '38px' },
+    fontSize: { default: '34px', [breakpoints.desktop]: '30px' },
     fontWeight: 700,
     letterSpacing: '-0.03em',
     lineHeight: 1.15,
   },
-  search: {
-    width: { default: '100%', [breakpoints.desktop]: '360px' },
-    flexShrink: 0,
-    marginTop: { default: 0, [breakpoints.desktop]: '10px' },
-  },
   tabs: {
-    marginTop: { default: '20px', [breakpoints.desktop]: '24px' },
-    paddingBottom: '16px',
-    borderBottomWidth: '1px',
-    borderBottomStyle: 'solid',
-    borderBottomColor: auth.cardBorder,
+    marginTop: { default: '20px', [breakpoints.desktop]: '16px' },
   },
-  // the posts and the create card beside them on a desktop, the card after the posts on a phone
-  content: {
-    display: 'grid',
-    gridTemplateColumns: {
-      default: 'minmax(0, 1fr)',
-      [breakpoints.desktop]: 'minmax(0, 1fr) 280px',
-    },
-    alignItems: 'start',
-    gap: { default: '16px', [breakpoints.desktop]: '24px' },
-    marginTop: { default: '20px', [breakpoints.desktop]: '24px' },
+  // the last on a phone, after the posts. under the tabs on a desktop
+  create: {
+    order: 3,
+    marginTop: { default: '16px', [breakpoints.desktop]: 0 },
   },
   feed: {
+    display: { default: 'contents', [breakpoints.desktop]: 'block' },
+    gridColumnStart: 1,
+    gridRowStart: 1,
+    minWidth: 0,
+  },
+  // a desktop's: sticks to the top of the window above the posts, inside their column (a sticky box stays within
+  // its parent, and the column is as tall as the posts). it takes in main's top padding (the negative margin, given
+  // back as padding), so stuck it sits where it does unscrolled, level with the side column, and its background
+  // covers the posts scrolling under it, down to the gap before the first one. above the cards' city tags and title
+  // links (z-index 1). its line is always there and unseen until the page scrolls, so nothing moves when it shows.
+  // a phone's: the first thing, in the page's flow
+  search: {
+    order: 0,
+    position: { default: 'static', [breakpoints.desktop]: 'sticky' },
+    top: 0,
+    zIndex: 2,
+    marginTop: { default: 0, [breakpoints.desktop]: '-36px' },
+    paddingTop: { default: 0, [breakpoints.desktop]: '36px' },
+    paddingBottom: { default: 0, [breakpoints.desktop]: '18px' },
+    borderBottomWidth: { default: 0, [breakpoints.desktop]: '1px' },
+    borderBottomStyle: 'solid',
+    borderBottomColor: 'transparent',
+    backgroundColor: auth.page,
+    transition: 'border-color 120ms ease',
+  },
+  // the posts are going under it
+  searchScrolled: {
+    borderBottomColor: auth.cardBorder,
+  },
+  posts: {
+    order: 2,
     minWidth: 0,
   },
   // one wide card per row
@@ -270,9 +300,5 @@ const styles = stylex.create({
     flexDirection: 'column',
     gap: { default: '16px', [breakpoints.desktop]: '18px' },
     listStyle: 'none',
-  },
-  aside: {
-    position: { default: 'static', [breakpoints.desktop]: 'sticky' },
-    top: '36px',
   },
 });

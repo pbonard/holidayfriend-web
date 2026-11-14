@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { queryKey } from '@/constants';
-import { getMyProfileBrief, getProfileStatus, saveProfile } from '@/api/profile';
+import {
+  getMyProfileBrief,
+  getProfile,
+  getProfileStatus,
+  saveProfile,
+} from '@/api/profile';
 
 export function useProfileStatus() {
   return useQuery({
@@ -29,5 +34,13 @@ export function useMyProfileBrief() {
   return useQuery({
     queryKey: [queryKey.PROFILE, queryKey.GET_MY_PROFILE_BRIEF],
     queryFn: getMyProfileBrief,
+  });
+}
+
+// a person's profile page. saving one's own profile refreshes it too, it's under queryKey.PROFILE
+export function useGetProfile(id: string) {
+  return useQuery({
+    queryKey: [queryKey.PROFILE, queryKey.GET_PROFILE, id],
+    queryFn: () => getProfile(id),
   });
 }

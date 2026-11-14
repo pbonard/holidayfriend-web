@@ -130,10 +130,16 @@ const styles = stylex.create({
     paddingRight: '14px',
     borderWidth: '1px',
     borderStyle: 'solid',
-    borderColor: { default: auth.border, ':focus': auth.link },
+    // lighter on hover as the tabs and buttons, the accent while typing in it
+    borderColor: {
+      default: auth.border,
+      ':hover': auth.muted,
+      ':focus': auth.link,
+    },
     borderRadius: '10px',
     outline: 'none',
     backgroundColor: auth.control,
+    transition: 'border-color 120ms ease',
     color: auth.text,
     fontFamily: 'inherit',
     // 16px keeps ios safari from zooming in on focus

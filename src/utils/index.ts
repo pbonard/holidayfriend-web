@@ -6,3 +6,8 @@ export function fitToContent(textarea: HTMLTextAreaElement) {
   const border = textarea.offsetHeight - textarea.clientHeight;
   textarea.style.height = `${textarea.scrollHeight + border}px`;
 }
+
+// a person's profile page, /profile/{id}
+export function profilePath(userId: string) {
+  return `/profile/${userId}`;
+}

@@ -4,6 +4,7 @@ import type {
   Place,
   PostDetail,
   PostFeedItem,
+  UserPostItem,
 } from '@/types/post';
 
 export async function createPost(
@@ -31,5 +32,16 @@ export async function listPosts(
 // a post with its whole body. a post that's gone is the error "Post not found"
 export async function getPostDetail(id: string): Promise<PostDetail> {
   const { data } = await axiosInstance.get(`/api/post/${id}`);
+  return data;
+}
+
+// one page of a person's posts for their profile, newest first, the same size and paging as a city's
+export async function listUserPosts(
+  userId: string,
+  before?: string,
+): Promise<UserPostItem[]> {
+  const { data } = await axiosInstance.get(`/api/post/user/${userId}`, {
+    params: { before },
+  });
   return data;
 }

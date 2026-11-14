@@ -57,9 +57,11 @@ function NavLinks({ pathname }: { pathname: string | null }) {
 // the [stylex.when.ancestor('[data-sidebar="collapsed"]', rootMarker)] keys: the desktop sidebar collapsed, as in
 // Sidebar. written out each time: stylex compiles the call only where it's a key of stylex.create
 const styles = stylex.create({
+  // in a row on the right of a phone's bar (the auto margin, before the create button), a column in the sidebar
   nav: {
     display: 'flex',
-    flexDirection: 'column',
+    flexDirection: { default: 'row', [breakpoints.desktop]: 'column' },
+    marginLeft: { default: 'auto', [breakpoints.desktop]: 0 },
     gap: '4px',
   },
   item: {
@@ -74,6 +76,8 @@ const styles = stylex.create({
       },
     },
     gap: '12px',
+    // square in a phone's bar
+    minWidth: { default: '44px', [breakpoints.desktop]: 0 },
     height: '44px',
     paddingInline: {
       default: 0,

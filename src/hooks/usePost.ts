@@ -5,7 +5,13 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import { queryKey } from '@/constants';
-import { createPost, getPostDetail, listPosts, POST_PAGE_SIZE } from '@/api/post';
+import {
+  createPost,
+  getPostDetail,
+  listPosts,
+  listUserPosts,
+  POST_PAGE_SIZE,
+} from '@/api/post';
 import type { Place } from '@/types/post';
 
 export function useCreatePost() {
@@ -29,6 +35,18 @@ export function useInfiniteCityPosts(place: Place | null) {
     enabled: place !== null,
     initialPageParam: undefined as string | undefined,
     // a short page is the last, so there's no request for an empty one
+    getNextPageParam: (lastPage) =>
+      lastPage.length < POST_PAGE_SIZE ? undefined : lastPage.at(-1)?.id,
+  });
+}
+
+// a person's posts on their profile, a page at a time as a city's. writing a post refreshes it too, it's under
+// queryKey.POST
+export function useInfiniteUserPosts(userId: string) {
+  return useInfiniteQuery({
+    queryKey: [queryKey.POST, queryKey.GET_USER_POSTS, userId],
+    queryFn: ({ pageParam }) => listUserPosts(userId, pageParam),
+    initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) =>
       lastPage.length < POST_PAGE_SIZE ? undefined : lastPage.at(-1)?.id,
   });

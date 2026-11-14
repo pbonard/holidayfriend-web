@@ -43,6 +43,12 @@ export interface PostFeedItem {
   places: Place[];
 }
 
+// a line of a person's profile, from GET /api/post/user/{id}: a feed item without its author, who is the profile's
+export type UserPostItem = Omit<
+  PostFeedItem,
+  'authorId' | 'authorName' | 'authorBasedIn'
+>;
+
 // a post's own page, from GET /api/post/{id}: a feed item with the whole body
 export type PostDetail = PostFeedItem;
 
