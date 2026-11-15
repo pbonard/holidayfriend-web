@@ -3,7 +3,14 @@
 import { useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import * as stylex from '@stylexjs/stylex';
-import { auth, breakpoints, fonts, rootMarker } from '@/styles/tokens.stylex';
+import {
+  auth,
+  breakpoints,
+  fillHeightMarker,
+  fonts,
+  rootMarker,
+} from '@/styles/tokens.stylex';
+import ChatConnection from '@/components/chat/ChatConnection';
 import SidebarCollapseIcon from '@/components/icons/SidebarCollapseIcon';
 import NavigationList from '@/components/NavigationList';
 import {
@@ -53,6 +60,7 @@ export default function Tab({ children }: { children: React.ReactNode }) {
         <NavigationList />
       </aside>
       <main {...stylex.props(styles.main)}>{children}</main>
+      <ChatConnection />
     </div>
   );
 }
@@ -72,6 +80,11 @@ const styles = stylex.create({
     display: 'flex',
     flexDirection: { default: 'column', [breakpoints.desktop]: 'row' },
     minHeight: '100vh',
+    // the chats screen: the window's height and no more, its lists scroll inside it
+    height: {
+      default: 'auto',
+      [stylex.when.descendant('[data-fill-height]', fillHeightMarker)]: '100dvh',
+    },
     backgroundColor: auth.page,
     color: auth.text,
     fontFamily: fonts.sans,
@@ -206,10 +219,30 @@ const styles = stylex.create({
         'scaleX(-1)',
     },
   },
+  // the chats screen fills it to its edges, its own columns have their own padding
   main: {
     flexGrow: 1,
     minWidth: 0,
-    paddingBlock: { default: '20px', [breakpoints.desktop]: '36px' },
-    paddingInline: { default: '16px', [breakpoints.desktop]: '40px' },
+    minHeight: 0,
+    display: {
+      default: 'block',
+      [stylex.when.descendant('[data-fill-height]', fillHeightMarker)]: 'flex',
+    },
+    paddingBlock: {
+      default: '20px',
+      [breakpoints.desktop]: {
+        default: '36px',
+        [stylex.when.descendant('[data-fill-height]', fillHeightMarker)]: 0,
+      },
+      [stylex.when.descendant('[data-fill-height]', fillHeightMarker)]: 0,
+    },
+    paddingInline: {
+      default: '16px',
+      [breakpoints.desktop]: {
+        default: '40px',
+        [stylex.when.descendant('[data-fill-height]', fillHeightMarker)]: 0,
+      },
+      [stylex.when.descendant('[data-fill-height]', fillHeightMarker)]: 0,
+    },
   },
 });

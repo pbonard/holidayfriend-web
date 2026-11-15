@@ -1,7 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Google_Sans } from "next/font/google";
 import * as stylex from "@stylexjs/stylex";
-import { auth, fonts, rootMarker, surfaceMarker } from "@/styles/tokens.stylex";
+import {
+  auth,
+  breakpoints,
+  fonts,
+  rootMarker,
+  surfaceMarker,
+} from "@/styles/tokens.stylex";
 import Providers from "@/components/Providers";
 import { SIDEBAR_SCRIPT } from "@/utils/sidebar";
 import "@/styles/globals.css";
@@ -54,11 +60,11 @@ const styles = stylex.create({
   // what safari shows past the page's top and bottom when it bounces or pulls to refresh, and behind its floating
   // bars: <html>'s own color, so it's the pages' and not black or grey. the login pages' lighter one while they're
   // open. color-scheme tells safari the page is dark, for its own fallbacks and controls
-  // no bounce past the top and bottom: it stretched the whole page, the sticky sidebar with it, so the sidebar
-  // looked like it scrolled. also no pull to refresh, the cost of it
+  // a phone's page bounces past its top and bottom (rubber banding), as phones' pages do, and pulls to refresh. a
+  // desktop's doesn't: it stretched the whole page, the sticky sidebar with it, so the sidebar looked like it scrolled
   html: {
     colorScheme: "dark",
-    overscrollBehaviorY: "none",
+    overscrollBehaviorY: { default: "auto", [breakpoints.desktop]: "none" },
     backgroundColor: {
       default: auth.page,
       [stylex.when.descendant('[data-page-background="surface"]', surfaceMarker)]:

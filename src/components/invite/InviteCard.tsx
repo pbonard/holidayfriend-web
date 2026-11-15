@@ -1,5 +1,6 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import * as stylex from '@stylexjs/stylex';
 import { useAcceptInvite, useDeclineInvite } from '@/hooks/useInvite';
 import { auth } from '@/styles/tokens.stylex';
@@ -7,15 +8,16 @@ import type { InviteListItem } from '@/types/invite';
 import Button from '@/components/Button';
 import PersonHeader from '@/components/PersonHeader';
 import MoreIcon from '@/components/icons/MoreIcon';
-import { timeAgo, timeOfId } from '@/utils';
+import { chatPath, timeAgo, timeOfId } from '@/utils';
 import { basedInLabel } from '@/utils/citySearch';
 
 // the server's 404 body for one already answered (in another tab) or sent again since with a new id
 const INVITE_NOT_FOUND = 'Invite not found';
 
-// an invite: who said hi, when, and their message, with accept and decline. its own mutations, so one card's
+// an invite: who said hi, when, and their message, with accept (which opens the chat) and decline. its own mutations, so one card's
 // answer on its way doesn't hold up the others. answered, it leaves the list (useInvite)
 export default function InviteCard({ invite }: { invite: InviteListItem }) {
+  const router = useRouter();
   const acceptInviteMutation = useAcceptInvite();
   const declineInviteMutation = useDeclineInvite();
   const answering =
@@ -48,7 +50,12 @@ export default function InviteCard({ invite }: { invite: InviteListItem }) {
       <div {...stylex.props(styles.actions)}>
         <Button
           disabled={answering}
-          onClick={() => acceptInviteMutation.mutate(invite.id)}
+          // to the chat it starts, where its message arrives as the first
+          onClick={() =>
+            acceptInviteMutation.mutate(invite.id, {
+              onSuccess: () => router.push(chatPath(invite.fromUserId)),
+            })
+          }
           xstyle={styles.answer}
         >
           Accept

@@ -32,6 +32,18 @@ function refreshAccessToken() {
   return refreshing;
 }
 
+// the token for what axios doesn't send, the chat's WebSocket. refreshed first when there's none yet, or when
+// stale: the gateway turned a WebSocket away with it, and a socket can't tell why, unlike a request's 401
+export async function getAccessToken({ stale = false } = {}) {
+  if (stale) {
+    accessToken = null;
+  }
+  if (!accessToken) {
+    await refreshAccessToken();
+  }
+  return accessToken as string;
+}
+
 // they don't take the token, and their 401 means a wrong code or password rather than an expired token
 function isAuthRequest(url?: string) {
   return url?.startsWith('/auth/') ?? false;

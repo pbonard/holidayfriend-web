@@ -12,6 +12,11 @@ export function profilePath(userId: string) {
   return `/profile/${userId}`;
 }
 
+// the chat with a person, /chats/{id}: a personal chat's room is the other person
+export function chatPath(userId: string) {
+  return `/chats/${userId}`;
+}
+
 // when a uuid v7 was made: its first 48 bits are the unix time in milliseconds
 export function timeOfId(id: string) {
   return new Date(parseInt(id.replace(/-/g, '').slice(0, 12), 16));
