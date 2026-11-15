@@ -26,6 +26,11 @@ const nextConfig: NextConfig = {
         source: '/api/:path*',
         destination: `${holidayFriendApiUrl}/api/:path*`,
       },
+      // my-server's chat, its socket too: next passes a rewritten WebSocket's upgrade on
+      {
+        source: '/chat/:path*',
+        destination: `${holidayFriendApiUrl}/chat/:path*`,
+      },
     ];
   },
 };

@@ -55,6 +55,13 @@ export const rootMarker = stylex.defineMarker();
 // on the login layout, whose panel is lighter: <html> takes that color with stylex.when.descendant
 export const surfaceMarker = stylex.defineMarker();
 
+// on the chats screen, with data-fill-height: Tab gives it the window's height without its padding, with
+// stylex.when.descendant, so the messages scroll inside it and the input stays at the bottom
+export const fillHeightMarker = stylex.defineMarker();
+
+// on an open chat, with data-chat-room: a phone shows it alone, the list beside it hides with stylex.when.siblingAfter
+export const chatRoomMarker = stylex.defineMarker();
+
 // on a card's main link, whose ::after covers the card: the card rings itself with stylex.when.descendant while
 // that link has the keyboard's focus, and not while one of its own tags or buttons has it
 export const cardLinkMarker = stylex.defineMarker();

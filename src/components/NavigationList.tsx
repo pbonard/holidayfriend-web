@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import * as stylex from '@stylexjs/stylex';
 import { auth, breakpoints, rootMarker } from '@/styles/tokens.stylex';
+import { useHasUnreadChats } from '@/hooks/useChat';
+import ChatIcon from '@/components/icons/ChatIcon';
 import CompassIcon from '@/components/icons/CompassIcon';
 import InboxIcon from '@/components/icons/InboxIcon';
 import PlusIcon from '@/components/icons/PlusIcon';
@@ -15,6 +17,8 @@ type NavItem = {
   Icon: typeof CompassIcon;
   // at the end of a phone's bar, whatever its place in the sidebar
   lastOnPhone?: boolean;
+  // a red dot on its icon while a chat has something unread
+  unreadMessages?: boolean;
 };
 
 const NAV: NavItem[] = [
@@ -26,6 +30,7 @@ const NAV: NavItem[] = [
     lastOnPhone: true,
   },
   { href: '/explore', label: 'Explore', Icon: CompassIcon },
+  { href: '/chats', label: 'Chats', Icon: ChatIcon, unreadMessages: true },
   { href: '/invites', label: 'Invites', Icon: InboxIcon },
 ];
 
@@ -47,13 +52,15 @@ function CurrentNavLinks() {
 
 // the links, the one of pathname marked as the current page. none while it isn't known
 function NavLinks({ pathname }: { pathname: string | null }) {
-  return NAV.map(({ href, label, Icon, lastOnPhone }) => {
+  const hasUnreadChats = useHasUnreadChats();
+  return NAV.map(({ href, label, Icon, lastOnPhone, unreadMessages }) => {
     const active = pathname?.startsWith(href) ?? false;
+    const unread = Boolean(unreadMessages) && hasUnreadChats;
     return (
       <Link
         key={href}
         href={href}
-        aria-label={label}
+        aria-label={unread ? `${label}, unread messages` : label}
         aria-current={active ? 'page' : undefined}
         {...stylex.props(
           styles.item,
@@ -63,6 +70,7 @@ function NavLinks({ pathname }: { pathname: string | null }) {
       >
         <span {...stylex.props(styles.iconWrap)}>
           <Icon size={20} />
+          {unread && <span {...stylex.props(styles.dot)} />}
         </span>
         <span {...stylex.props(styles.label)}>{label}</span>
       </Link>
@@ -123,6 +131,21 @@ const styles = stylex.create({
     position: 'relative',
     display: 'flex',
   },
+  // something unread, on the icon's top right corner: a red dot, no count. the link's label says it to a screen
+  // reader. ringed in the sidebar's color, so it stands apart from the icon's lines
+  dot: {
+    position: 'absolute',
+    top: '-3px',
+    right: '-3px',
+    width: '10px',
+    height: '10px',
+    borderWidth: '2px',
+    borderStyle: 'solid',
+    borderColor: auth.card,
+    borderRadius: '50%',
+    backgroundColor: auth.danger,
+  },
+
   // only in the open desktop sidebar, the narrow one shows the icons alone
   label: {
     display: {
