@@ -88,11 +88,26 @@ const styles = stylex.create({
       default: '100vh',
       [stylex.when.descendant('[data-fill-height]', fillHeightMarker)]: 0,
     },
+    // pinned to what's visible, so scrolling the page can't move it. while a phone's keyboard is open, the part above
+    // the keyboard (ChatFrame sets the variables): ios shrinks neither 100dvh nor the page for it, it slides what's
+    // visible down over the page instead
+    position: {
+      default: 'static',
+      [stylex.when.descendant('[data-fill-height]', fillHeightMarker)]: 'fixed',
+    },
+    top: {
+      default: null,
+      [stylex.when.descendant('[data-fill-height]', fillHeightMarker)]:
+        'var(--visible-top, 0px)',
+    },
+    insetInline: {
+      default: null,
+      [stylex.when.descendant('[data-fill-height]', fillHeightMarker)]: 0,
+    },
     height: {
       default: 'auto',
-      // above the keyboard while it's open (ChatFrame sets the variable): ios doesn't shrink 100dvh for it
       [stylex.when.descendant('[data-fill-height]', fillHeightMarker)]:
-        'var(--above-keyboard-height, 100dvh)',
+        'var(--visible-height, 100dvh)',
     },
     backgroundColor: auth.page,
     color: auth.text,
