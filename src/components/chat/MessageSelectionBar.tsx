@@ -102,8 +102,10 @@ const styles = stylex.create({
     borderTopStyle: 'solid',
     borderTopColor: auth.cardBorder,
   },
+  // as wide as its label: Button fills its row otherwise, and would push the count and Delete out of it
   button: {
     flexShrink: 0,
+    width: 'auto',
     height: '48px',
     paddingInline: '20px',
   },
