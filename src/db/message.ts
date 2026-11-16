@@ -1,4 +1,4 @@
-import type { Message, MessagingResponse, RoomSummary } from '@/types/chat';
+import type { MessagingResponse, RoomSummary } from '@/types/chat';
 
 // the chats of this browser, in IndexedDB, as the mobile app keeps them in sqlite: my-server's chat hands each message
 // out once (GET /chat/messaging/recent from a cursor, or the socket), so what was received is only here. per person
@@ -14,10 +14,13 @@ import type { Message, MessagingResponse, RoomSummary } from '@/types/chat';
 
 export type Rooms = Readonly<Record<string, RoomSummary>>;
 // a chat's latest messages in memory, oldest first, and whether older ones are kept too
-export type ChatRoomMessages = { messages: Message[]; hasEarlier: boolean };
+export type ChatRoomMessages = {
+  messages: MessagingResponse[];
+  hasEarlier: boolean;
+};
 export type ChatRoomMessagesMap = Readonly<Record<string, ChatRoomMessages>>;
 
-type MessageEntity = Message & { user: string };
+type MessageEntity = MessagingResponse & { user: string };
 type RoomRecord = RoomSummary & { user: string; roomId: string };
 type MetaRecord = { user: string; name: string; value: string };
 
@@ -107,20 +110,6 @@ function getRecentMessagePage(
   });
 }
 
-// a chat's messages from the message messageId on, oldest first
-function getMessagesFrom(
-  index: IDBIndex,
-  user: string,
-  roomId: string,
-  messageId: string,
-) {
-  const range = IDBKeyRange.bound(
-    [user, roomId, messageId],
-    [user, roomId, HIGHEST],
-  );
-  return promised(index.getAll(range)) as Promise<MessageEntity[]>;
-}
-
 // a chat's summary from its messages, after some were removed. null when none are left
 async function sumarizeMessage(
   index: IDBIndex,
@@ -128,11 +117,11 @@ async function sumarizeMessage(
   roomId: string,
   readId: string,
 ): Promise<RoomRecord | null> {
-  const [last] = await getRecentMessagePage(index, user, roomId, 1);
-  if (!last) return null;
+  const [lastMessage] = await getRecentMessagePage(index, user, roomId, 1);
+  if (!lastMessage) return null;
   let lastFromOtherId = '';
-  if (last.fromId !== user) {
-    lastFromOtherId = last.id;
+  if (lastMessage.fromId !== user) {
+    lastFromOtherId = lastMessage.id;
   } else {
     // the other person's newest: back from the newest, past one's own
     const range = IDBKeyRange.bound(
@@ -151,42 +140,53 @@ async function sumarizeMessage(
       request.onerror = () => reject(request.error);
     });
   }
-  return { user, roomId, last: toMessage(last), lastFromOtherId, readId };
+  return {
+    user,
+    roomId,
+    last: lastMessage,
+    lastFromOtherId,
+    readId,
+  };
 }
 
 // --- what's kept ---
 
-// a message as it's kept and shown: as chat sent it, from what chat sent or what IndexedDB has (without its user)
-function toMessage({
-  id,
-  roomId,
-  fromId,
-  contentType,
-  contents,
-}: Message): Message {
-  return { id, roomId, fromId, contentType, contents };
+// one's own blocking or unblocking: a pill in the chat, not a message to select or delete, as on mobile
+export function isBlockEvent(message: MessagingResponse) {
+  return message.contentType === 'block' || message.contentType === 'unblock';
 }
 
-// what a kept message says: a text's, or an accepted invite's ("accept", holidayfriend-server's, its own look)
-export function textOf(message: Message) {
-  return message.contents[0] ?? '';
+// a kept message in a line, for the chat list: its text (a text's, or an accepted invite's), or what files it has
+export function previewOf(message: MessagingResponse) {
+  // one kept before saving made it a list may have none
+  const contents = message.contents ?? [];
+  const count = contents.length;
+  switch (message.contentType) {
+    case 'image':
+      return count > 1 ? `${count} photos` : 'Photo';
+    case 'video':
+      return count > 1 ? `${count} videos` : 'Video';
+    case 'audio':
+      return 'Voice message';
+    case 'block':
+      return 'Blocked';
+    case 'unblock':
+      return 'Unblocked';
+    default:
+      return contents[0] ?? '';
+  }
 }
 
-// a kept message in a line, for the chat list
-export function previewOf(message: Message) {
-  return textOf(message);
-}
-
-const SHOWN = new Set(['text', 'accept']);
-
-// the messages chat relayed (on the socket, or catching up), kept, and the cursor moved past them: they come in
-// chat's order, so nothing before them is still to come
-export async function saveMessages(
-  user: string,
-  messages: MessagingResponse[],
-) {
-  await putMessages(user, messages, { moveCursor: true });
-}
+// shown in the chat: messages, and one's own blocking and unblocking as a pill (chat hands those to their sender alone)
+const SHOWN = new Set([
+  'text',
+  'accept',
+  'image',
+  'video',
+  'audio',
+  'block',
+  'unblock',
+]);
 
 // one's own message, kept as soon as chat answers with its id (db/pending), before it's relayed back. the cursor
 // stays: a message the other person sent a moment before it may not have arrived yet, and moving past it would skip
@@ -198,8 +198,10 @@ export async function saveSentMessage(
   await putMessages(user, [message], { moveCursor: false });
 }
 
-// each in its room, in one transaction
-async function putMessages(
+// messages kept, each in its room, in one transaction. moveCursor: chat relayed them (on the socket, or catching
+// up), so the cursor moves past them: they come in chat's order, nothing before them is still to come. not for
+// one's own just answered (saveSentMessage)
+export async function putMessages(
   user: string,
   messages: MessagingResponse[],
   { moveCursor }: { moveCursor: boolean },
@@ -213,7 +215,9 @@ async function putMessages(
   const changed = new Set<string>();
 
   // oldest first, so a quit or delete meets what it removes
-  for (const message of [...messages].sort((a, b) => (a.id < b.id ? -1 : 1))) {
+  for (const received of [...messages].sort((a, b) => (a.id < b.id ? -1 : 1))) {
+    // chat sends none as null (an empty list in its storage comes back as nothing), a block's or a quit's
+    const message = { ...received, contents: received.contents ?? [] };
     const { roomId } = message;
     const room = (await promised(roomStore.get([user, roomId]))) as
       | RoomRecord
@@ -222,20 +226,19 @@ async function putMessages(
     if (SHOWN.has(message.contentType)) {
       // once, whether it came on the socket, from catching up, or both
       if (await promised(messageStore.getKey([user, message.id]))) continue;
-      const kept = toMessage(message);
-      messageStore.put({ ...kept, user } satisfies MessageEntity);
+      messageStore.put({ ...message, user } satisfies MessageEntity);
       // one's own message, from this tab or another, is read
       const readId =
-        message.fromId === user && kept.id > (room?.readId ?? '')
-          ? kept.id
+        message.fromId === user && message.id > (room?.readId ?? '')
+          ? message.id
           : (room?.readId ?? '');
       roomStore.put({
         user,
         roomId,
-        last: !room || kept.id > room.last.id ? kept : room.last,
+        last: !room || message.id > room.last.id ? message : room.last,
         lastFromOtherId:
-          message.fromId !== user && kept.id > (room?.lastFromOtherId ?? '')
-            ? kept.id
+          message.fromId !== user && message.id > (room?.lastFromOtherId ?? '')
+            ? message.id
             : (room?.lastFromOtherId ?? ''),
         readId,
       } satisfies RoomRecord);
@@ -268,7 +271,7 @@ async function putMessages(
       if (!deleted || deleted.roomId !== roomId) continue;
       messageStore.delete(key);
     } else {
-      // block, unblock and files: the web app neither sends nor shows them
+      // the rest (a group's create and participate): the web app has no groups
       continue;
     }
     const summary = await sumarizeMessage(index, user, roomId, room.readId);
@@ -388,18 +391,25 @@ async function refresh(user: string, roomIds: string[], tellOthers: boolean) {
       if (firstMessageId) {
         // everything from the earliest shown on: what was shown stays, new ones come after it
         const [found, older] = await Promise.all([
-          getMessagesFrom(index, user, roomId, firstMessageId),
+          promised(
+            index.getAll(
+              IDBKeyRange.bound(
+                [user, roomId, firstMessageId],
+                [user, roomId, HIGHEST],
+              ),
+            ),
+          ) as Promise<MessageEntity[]>,
           getRecentMessagePage(index, user, roomId, 1, firstMessageId),
         ]);
         nextChatRoomMessagesMap[roomId] = {
-          messages: found.map(toMessage),
+          messages: found,
           hasEarlier: older.length > 0,
         };
       } else if (chatRoomMessages) {
         // none shown yet (a chat that was empty): its latest page
         const found = await getRecentMessagePage(index, user, roomId, PAGE + 1);
         nextChatRoomMessagesMap[roomId] = {
-          messages: found.slice(0, PAGE).reverse().map(toMessage),
+          messages: found.slice(0, PAGE).reverse(),
           hasEarlier: found.length > PAGE,
         };
       }
@@ -439,14 +449,15 @@ function load(user: string) {
   })();
 }
 
-function onBroadcast(event: MessageEvent<{ user: string; roomIds: string[] }>) {
-  void refresh(event.data.user, event.data.roomIds, false);
-}
-
 export function subscribeChats(listener: () => void) {
   if (listeners.size === 0 && typeof BroadcastChannel !== 'undefined') {
     channel = new BroadcastChannel(DB_NAME);
-    channel.onmessage = onBroadcast;
+    // another tab changed these chats: read again here, not told back
+    channel.onmessage = (
+      event: MessageEvent<{ user: string; roomIds: string[] }>,
+    ) => {
+      void refresh(event.data.user, event.data.roomIds, false);
+    };
   }
   listeners.add(listener);
   return () => {
@@ -486,7 +497,7 @@ export async function openRoom(user: string, roomId: string) {
   chatRoomMessagesMap = {
     ...chatRoomMessagesMap,
     [roomId]: {
-      messages: found.slice(0, PAGE).reverse().map(toMessage),
+      messages: found.slice(0, PAGE).reverse(),
       hasEarlier: found.length > PAGE,
     },
   };
@@ -516,10 +527,7 @@ export async function loadEarlier(user: string, roomId: string) {
   chatRoomMessagesMap = {
     ...chatRoomMessagesMap,
     [roomId]: {
-      messages: [
-        ...found.slice(0, PAGE).reverse().map(toMessage),
-        ...current.messages,
-      ],
+      messages: [...found.slice(0, PAGE).reverse(), ...current.messages],
       hasEarlier: found.length > PAGE,
     },
   };
