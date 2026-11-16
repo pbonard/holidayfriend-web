@@ -8,61 +8,24 @@ import {
   useSyncExternalStore,
 } from 'react';
 import * as stylex from '@stylexjs/stylex';
+import { CHAT_MESSAGE_MAX } from '@/constants';
 import { sendMedia, sendText } from '@/db/pending';
 import { useMyId } from '@/hooks/useChat';
 import { auth, breakpoints } from '@/styles/tokens.stylex';
-import type { MediaType } from '@/types/chat';
+import type { Attachment, MediaType } from '@/types/chat';
 import Button from '@/components/Button';
-import MediaPreview, { type Attachment } from '@/components/chat/MediaPreview';
+import MediaPreview from '@/components/chat/MediaPreview';
 import VoiceInput, { canRecordVoice } from '@/components/chat/VoiceInput';
 import ImageIcon from '@/components/icons/ImageIcon';
 import MicIcon from '@/components/icons/MicIcon';
 import SendIcon from '@/components/icons/SendIcon';
 import { fitToContent } from '@/utils';
 import { readDraft, saveDraft, subscribeDraft } from '@/utils/chatDraft';
-
-// long enough for anything typed in a chat
-const MESSAGE_MAX = 2000;
-// as the mobile app's picker allows
-const VIDEO_MAX_SECONDS = 30;
-// garage's limit on an upload (my-server's presigned form)
-const FILE_MAX_BYTES = 1024 * 1024 * 1024;
-
-// how long a video runs, from its metadata. 0 when the browser can't read it, which lets it through
-function videoSeconds(file: File) {
-  return new Promise<number>((resolve) => {
-    const video = document.createElement('video');
-    const url = URL.createObjectURL(file);
-    const done = (seconds: number) => {
-      URL.revokeObjectURL(url);
-      resolve(seconds);
-    };
-    video.preload = 'metadata';
-    video.onloadedmetadata = () =>
-      done(Number.isFinite(video.duration) ? video.duration : 0);
-    video.onerror = () => done(0);
-    video.src = url;
-  });
-}
+import { checkFiles } from '@/utils/file';
 
 // whether the browser can record never changes: read once it's in the browser, none while prerendering
 function subscribeNothing() {
   return () => {};
-}
-
-// what's wrong with the files picked, or null: too big, or a video too long
-async function checkFiles(images: File[], videos: File[]) {
-  const tooBig = [...images, ...videos].find(
-    (file) => file.size > FILE_MAX_BYTES,
-  );
-  if (tooBig) {
-    return `${tooBig.name} is larger than 1 GB.`;
-  }
-  const lengths = await Promise.all(videos.map(videoSeconds));
-  if (lengths.some((seconds) => seconds > VIDEO_MAX_SECONDS)) {
-    return `Videos can be up to ${VIDEO_MAX_SECONDS} seconds long.`;
-  }
-  return null;
 }
 
 // the message being written at the bottom of a chat. Enter sends it, Shift+Enter starts a new line. the microphone
@@ -265,7 +228,7 @@ export default function MessageInput({
               }}
               aria-label={`Message to ${name || 'them'}`}
               rows={1}
-              maxLength={MESSAGE_MAX}
+              maxLength={CHAT_MESSAGE_MAX}
               value={text}
               // until the person logged in is known: what's typed is kept under them
               readOnly={!myId}

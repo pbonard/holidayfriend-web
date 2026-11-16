@@ -65,3 +65,20 @@ export function formatDuration(seconds: number) {
   const whole = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
   return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
 }
+
+// how long a video runs, from its metadata. 0 when the browser can't read it, which lets it through
+export function videoSeconds(file: File) {
+  return new Promise<number>((resolve) => {
+    const video = document.createElement('video');
+    const url = URL.createObjectURL(file);
+    const done = (seconds: number) => {
+      URL.revokeObjectURL(url);
+      resolve(seconds);
+    };
+    video.preload = 'metadata';
+    video.onloadedmetadata = () =>
+      done(Number.isFinite(video.duration) ? video.duration : 0);
+    video.onerror = () => done(0);
+    video.src = url;
+  });
+}

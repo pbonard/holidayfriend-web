@@ -17,6 +17,13 @@ export interface MessagingResponse {
 // of its message, whose contents are the files' names
 export type MediaType = 'image' | 'video' | 'audio';
 
+// a photo or video picked, not sent yet. url: the file's object url, what its thumbnail shows
+export interface Attachment {
+  id: string;
+  file: File;
+  url: string;
+}
+
 // one of POST /chat/messaging/presigned: a presigned POST to garage for one file
 export interface PresignedUpload {
   // the file's name, what the message's contents name it by
