@@ -19,4 +19,7 @@ export const queryKey = {
   GET_POST_DETAIL: 'getPostDetail',
   INVITE: 'invite',
   GET_INVITES: 'getInvites',
+  CHAT: 'chat',
+  GET_MEDIA: 'getMedia',
+  CHECK_BLOCK: 'checkBlock',
 };

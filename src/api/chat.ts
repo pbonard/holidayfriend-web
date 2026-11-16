@@ -1,9 +1,17 @@
+import axios from 'axios';
 import { axiosInstance } from '@/api/axios';
-import type { MessagingResponse, SendMessageRequest } from '@/types/chat';
+import type {
+  MessagingResponse,
+  MediaType,
+  PresignedUpload,
+  SendMessageRequest,
+} from '@/types/chat';
 
 // the messages to the person logged in after the cursor, a message id: what arrived while no socket was open.
 // my-server's chat answers null for none
-export async function getRecentMessages(cursor: string): Promise<MessagingResponse[]> {
+export async function getRecentMessages(
+  cursor: string,
+): Promise<MessagingResponse[]> {
   const { data } = await axiosInstance.get<MessagingResponse[] | null>(
     '/chat/messaging/recent',
     { params: { cursor } },
@@ -26,4 +34,55 @@ export function openMessagingSocket(token: string, deviceId: string) {
   const { protocol, host } = window.location;
   const url = `${protocol === 'https:' ? 'wss' : 'ws'}://${host}/chat/messaging/connect?deviceId=${deviceId}`;
   return new WebSocket(url, ['bearer', token]);
+}
+
+// where to upload n files of a type, one each: a presigned POST to garage, and the name the message names it by
+export async function generatePresignedURL(body: {
+  contentType: MediaType;
+  n: number;
+}): Promise<PresignedUpload[]> {
+  const { data } = await axiosInstance.post('/chat/messaging/presigned', body);
+  return data;
+}
+
+// the file, straight to garage with the presigned form. the fields first and the file last, as S3 wants. plain axios
+// and not axiosInstance: no token, garage checks the form's signature. axios and not fetch: fetch can't tell how
+// much of an upload went, axios's XMLHttpRequest can (onProgress, bytes sent of the whole form). watching it makes
+// the browser ask first (a CORS preflight, OPTIONS): garage answers it from the bucket's CORS rules
+export async function uploadToStorage(
+  { url, fields }: PresignedUpload,
+  file: File,
+  onProgress?: (sent: number, total: number) => void,
+) {
+  const form = new FormData();
+  Object.entries(fields).forEach(([key, value]) => form.append(key, value));
+  form.append('Content-Type', file.type);
+  form.append('file', file);
+  try {
+    await axios.post(url, form, {
+      onUploadProgress: ({ loaded, total }) =>
+        onProgress?.(loaded, total ?? file.size),
+    });
+  } catch {
+    throw new Error(`Couldn't upload ${file.name}`);
+  }
+}
+
+// a link to a file of a message, for an hour. only for who the message was to or from
+export async function getSignedURL(params: {
+  contentType: MediaType;
+  filename: string;
+}): Promise<{ url: string }> {
+  const { data } = await axiosInstance.get('/chat/messaging/signed', {
+    params,
+  });
+  return data;
+}
+
+// whether the person logged in blocked them: chat then doesn't hand them their messages. as mobile asks
+export async function checkBlock(id: string): Promise<{ didBlock: boolean }> {
+  const { data } = await axiosInstance.get('/chat/block/check', {
+    params: { id },
+  });
+  return data;
 }

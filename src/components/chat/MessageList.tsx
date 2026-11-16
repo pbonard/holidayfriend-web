@@ -3,7 +3,8 @@
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { breakpoints } from '@/styles/tokens.stylex';
-import type { Message } from '@/types/chat';
+import type { MessagingResponse } from '@/types/chat';
+import { isBlockEvent } from '@/db/message';
 import type { PendingMessage } from '@/db/pending';
 import { useStartReached } from '@/hooks/useEndReached';
 import StatusText from '@/components/StatusText';
@@ -16,7 +17,7 @@ const NEAR_BOTTOM = 120;
 
 type MessageListProps = {
   // oldest first, the latest pages of the chat. undefined while the first is read
-  messages: Message[] | undefined;
+  messages: MessagingResponse[] | undefined;
   // older ones are kept too, onLoadEarlier reads the page before
   hasEarlier: boolean;
   onLoadEarlier: () => Promise<void>;
@@ -148,11 +149,15 @@ export default function MessageList({
                       !before ||
                       !sameDay(timeOfId(before.id), timeOfId(message.id))
                     }
+                    name={name}
+                    // a block's pill isn't one to delete
                     selection={
-                      selection && {
-                        selected: selection.ids.has(message.id),
-                        onToggle: () => selection.onToggle(message.id),
-                      }
+                      selection && !isBlockEvent(message)
+                        ? {
+                            selected: selection.ids.has(message.id),
+                            onToggle: () => selection.onToggle(message.id),
+                          }
+                        : undefined
                     }
                   />
                 </li>

@@ -1,31 +1,41 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAccessToken, NotLoggedInError } from '@/api/axios';
 import {
+  checkBlock,
   getRecentMessages,
   openMessagingSocket,
   sendMessage,
 } from '@/api/chat';
+import { queryKey } from '@/constants';
+import {
+  acquireObjectURL,
+  downloadMessagesMedia,
+  getMedia,
+  objectURLOf,
+  releaseObjectURL,
+} from '@/db/media';
 import {
   getPending,
   getServerPending,
   restorePending,
+  settlePending,
   subscribePending,
 } from '@/db/pending';
 import { useMyProfileBrief } from '@/hooks/useProfile';
-import type { MessagingResponse, ChatPreview } from '@/types/chat';
+import type { MessagingResponse, ChatPreview, MediaType } from '@/types/chat';
 import { saveDraft } from '@/utils/chatDraft';
 import {
   getCursor,
   getDeviceId,
-  getChatRoomMessagesMap,
   getRooms,
+  getChatRoomMessagesMap,
   getServerChatRoomMessagesMap,
   loadEarlier,
   markRoomRead,
   openRoom,
   removeRoom,
-  saveMessages,
+  putMessages,
   saveSentMessage,
   subscribeChats,
   type Rooms,
@@ -45,6 +55,7 @@ export function useMyId() {
 // at once when the tab comes back to view or the network does. as the mobile app's root layout, once for the app
 export function useChatConnection() {
   const myId = useMyId();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (!myId) return;
@@ -60,7 +71,27 @@ export function useChatConnection() {
     let staleToken = false;
 
     const receive = (messages: MessagingResponse[]) => {
-      void saveMessages(user, messages);
+      // kept, then one's own among them no longer pending (db/pending): the message shows before its pending one goes
+      void (async () => {
+        try {
+          await putMessages(user, messages, { moveCursor: true });
+        } finally {
+          await settlePending(user, messages);
+        }
+      })();
+      // their photos and videos, in the background, as mobile downloads them as they arrive
+      downloadMessagesMedia(messages);
+      // blocked or unblocked, here or on another device: the chat's menu asks again
+      messages
+        .filter(
+          ({ contentType }) =>
+            contentType === 'block' || contentType === 'unblock',
+        )
+        .forEach(({ roomId }) =>
+          queryClient.invalidateQueries({
+            queryKey: [queryKey.CHAT, queryKey.CHECK_BLOCK, roomId],
+          }),
+        );
     };
 
     // what arrived while no socket was open. after the socket opens, so nothing sent in between is missed: one that
@@ -143,7 +174,7 @@ export function useChatConnection() {
       socket?.close();
       socket = null;
     };
-  }, [myId]);
+  }, [myId, queryClient]);
 }
 
 // the chats kept in this browser for the person logged in, their summaries. null until they're read
@@ -182,7 +213,7 @@ export function useHasUnreadChats() {
 export function useRoomMessages(roomId: string) {
   const myId = useMyId();
   const summary = useRooms(myId)?.[roomId];
-  const chatRoomMessages = useSyncExternalStore(
+  const messages = useSyncExternalStore(
     subscribeChats,
     getChatRoomMessagesMap,
     getServerChatRoomMessagesMap,
@@ -212,11 +243,42 @@ export function useRoomMessages(roomId: string) {
 
   return {
     myId,
-    messages: chatRoomMessages?.messages,
-    hasEarlier: chatRoomMessages?.hasEarlier ?? false,
+    messages: messages?.messages,
+    hasEarlier: messages?.hasEarlier ?? false,
     loadEarlier: showEarlier,
     exists: Boolean(summary),
   };
+}
+
+// a photo or video of a message as an address an <img> or <video> shows: from this browser when it's kept,
+// downloaded when it isn't (a message from before, or cleared site data). null until it's there. the address is let
+// go when it's no longer shown
+export function useMediaURL(contentType: MediaType, filename: string) {
+  const media = useQuery({
+    queryKey: [queryKey.CHAT, queryKey.GET_MEDIA, contentType, filename],
+    queryFn: () => getMedia(contentType, filename),
+    // a file never changes under its name
+    staleTime: Infinity,
+    // its bytes held in memory a minute after it's no longer shown: it's in Cache Storage anyway
+    gcTime: 60 * 1000,
+  });
+  const blob = media.data;
+  // showing it holds its address, which useSyncExternalStore reads once it's there
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      if (!blob) return () => {};
+      acquireObjectURL(blob);
+      onChange();
+      return () => releaseObjectURL(blob);
+    },
+    [blob],
+  );
+  const url = useSyncExternalStore(
+    subscribe,
+    () => (blob ? objectURLOf(blob) : null),
+    () => null,
+  );
+  return { url, isError: media.isError };
 }
 
 // leaves the chat: chat drops it from the person's messages (the other person keeps theirs), and this browser does.
@@ -283,4 +345,45 @@ export function useDeleteMessages(roomId: string) {
 export function usePendingMessages(roomId: string) {
   const getSnapshot = useCallback(() => getPending(roomId), [roomId]);
   return useSyncExternalStore(subscribePending, getSnapshot, getServerPending);
+}
+
+// whether the person logged in blocked the other person of the chat (chat's /chat/block/check)
+export function useCheckBlock(roomId: string) {
+  return useQuery({
+    queryKey: [queryKey.CHAT, queryKey.CHECK_BLOCK, roomId],
+    queryFn: () => checkBlock(roomId),
+  });
+}
+
+// blocks or unblocks the other person of the chat, as mobile does: a "block" or "unblock" message, which chat hands
+// to the person logged in alone. blocked, chat doesn't hand them their messages, and they aren't told. kept as soon
+// as it's answered (saveSentMessage): its pill shows in the chat
+export function useBlockChat(roomId: string) {
+  const myId = useMyId();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (block: boolean) => {
+      const contentType = block ? 'block' : 'unblock';
+      const { id } = await sendMessage({
+        toIdType: 'personal',
+        toId: roomId,
+        contentType,
+        contents: [],
+        noPush: true,
+      });
+      if (myId) {
+        await saveSentMessage(myId, {
+          id,
+          roomId,
+          fromId: myId,
+          contentType,
+          contents: [],
+        });
+      }
+    },
+    onSettled: () =>
+      queryClient.invalidateQueries({
+        queryKey: [queryKey.CHAT, queryKey.CHECK_BLOCK, roomId],
+      }),
+  });
 }

@@ -5,12 +5,25 @@ export interface MessagingResponse {
   // a personal chat's room is the other person, whoever sent the message
   roomId: string;
   fromId: string;
-  // "text" here, or "accept": an accepted invite's message, the chat's first, contents [text] as a text's but shown
-  // as the invite it was. also
+  // "text" here, "image" or "video" (contents: the files' names), or "accept": an accepted invite's message, the
+  // chat's first, contents [text] as a text's but shown as the invite it was. also
   // "quit" (one's own leaving, from another tab or device) and "delete" (contents[0] is the message deleted), which
   // change what's kept instead of showing
   contentType: string;
   contents: string[];
+}
+
+// a photo, a video, or a voice message (mobile's "audio", one m4a). the folder its files are in, and the content type
+// of its message, whose contents are the files' names
+export type MediaType = 'image' | 'video' | 'audio';
+
+// one of POST /chat/messaging/presigned: a presigned POST to garage for one file
+export interface PresignedUpload {
+  // the file's name, what the message's contents name it by
+  filename: string;
+  url: string;
+  // the form's fields, sent before the file
+  fields: Record<string, string>;
 }
 
 // what POST /chat/messaging/send takes
@@ -25,15 +38,11 @@ export interface SendMessageRequest {
   noPush: true;
 }
 
-// a message as the screens get it, kept in IndexedDB as chat sent it. read its text with textOf. no createdAt as on
-// mobile: its time is read from its id
-export type Message = MessagingResponse;
-
 // a chat's summary as this browser keeps it (db/message's rooms store): what the list and the badge need, without
 // its messages
 export interface RoomSummary {
   // its newest message
-  last: Message;
+  last: MessagingResponse;
   // the other person's newest message's id, '' when none
   lastFromOtherId: string;
   // the newest message read here, '' when none. it's unread while the other person's newest is after it
@@ -43,6 +52,6 @@ export interface RoomSummary {
 // a chat in the list: its latest message, and whether there's something unread
 export interface ChatPreview {
   roomId: string;
-  last: Message;
+  last: MessagingResponse;
   unread: boolean;
 }

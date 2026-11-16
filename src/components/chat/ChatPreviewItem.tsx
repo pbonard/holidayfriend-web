@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import * as stylex from '@stylexjs/stylex';
-import { previewOf } from '@/db/message';
+import { isBlockEvent, previewOf } from '@/db/message';
 import { useMyId } from '@/hooks/useChat';
 import { useGetProfile } from '@/hooks/useProfile';
 import { auth } from '@/styles/tokens.stylex';
@@ -55,7 +55,8 @@ export default function ChatPreviewItem({ preview, open, now }: ChatPreviewItemP
             {preview.unread && (
               <span {...stylex.props(styles.visuallyHidden)}>Unread: </span>
             )}
-            {mine && 'You: '}
+            {/* "Blocked" says whose already */}
+            {mine && !isBlockEvent(preview.last) && 'You: '}
             {previewOf(preview.last)}
           </span>
         </span>

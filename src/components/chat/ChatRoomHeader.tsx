@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import * as stylex from '@stylexjs/stylex';
-import { useLeaveChat } from '@/hooks/useChat';
+import { useBlockChat, useCheckBlock, useLeaveChat } from '@/hooks/useChat';
 import { auth } from '@/styles/tokens.stylex';
 import Button from '@/components/Button';
 import Modal from '@/components/Modal';
@@ -23,8 +23,14 @@ export default function ChatRoomHeader({
 }) {
   const router = useRouter();
   const leaveChatMutation = useLeaveChat(roomId);
+  const blockChatMutation = useBlockChat(roomId);
+  // whether they're blocked: Block or Unblock, once it's known
+  const didBlock = useCheckBlock(roomId).data?.didBlock;
   const [open, setOpen] = useState(false);
-  const [confirming, setConfirming] = useState(false);
+  // what's asked before it's done, or an unblock that failed
+  const [confirming, setConfirming] = useState<
+    'leave' | 'block' | 'unblockFailed' | null
+  >(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // closes on a click outside it, or Esc
@@ -47,9 +53,23 @@ export default function ChatRoomHeader({
   const leave = () => {
     leaveChatMutation.mutate(undefined, {
       onSuccess: () => {
-        setConfirming(false);
+        setConfirming(null);
         router.replace('/chats');
       },
+    });
+  };
+
+  // at once, and if it fails, says so with a retry: the menu would still say Unblock
+  const unblock = () => {
+    blockChatMutation.mutate(false, {
+      onSuccess: () => setConfirming(null),
+      onError: () => setConfirming('unblockFailed'),
+    });
+  };
+
+  const block = () => {
+    blockChatMutation.mutate(true, {
+      onSuccess: () => setConfirming(null),
     });
   };
 
@@ -88,12 +108,32 @@ export default function ChatRoomHeader({
               Select messages
             </button>
           )}
+          {didBlock !== undefined && (
+            <button
+              type="button"
+              role="menuitem"
+              disabled={blockChatMutation.isPending}
+              onClick={() => {
+                setOpen(false);
+                // unblocking undoes it at once, blocking asks first
+                if (didBlock) {
+                  unblock();
+                } else {
+                  blockChatMutation.reset();
+                  setConfirming('block');
+                }
+              }}
+              {...stylex.props(styles.item, !didBlock && styles.danger)}
+            >
+              {didBlock ? 'Unblock' : 'Block'}
+            </button>
+          )}
           <button
             type="button"
             role="menuitem"
             onClick={() => {
               setOpen(false);
-              setConfirming(true);
+              setConfirming('leave');
             }}
             {...stylex.props(styles.item, styles.danger)}
           >
@@ -103,8 +143,67 @@ export default function ChatRoomHeader({
       )}
 
       <Modal
-        open={confirming}
-        onClose={() => setConfirming(false)}
+        open={confirming === 'block'}
+        onClose={() => setConfirming(null)}
+        title={`Block ${name || 'them'}?`}
+      >
+        <p {...stylex.props(styles.explain)}>
+          You won&apos;t get their messages. They aren&apos;t told, and you can
+          unblock them from this menu.
+        </p>
+        {blockChatMutation.isError && (
+          <p role="alert" {...stylex.props(styles.error)}>
+            {blockChatMutation.error.message || "Couldn't block them."}
+          </p>
+        )}
+        <div {...stylex.props(styles.actions)}>
+          <Button
+            variant="secondary"
+            onClick={() => setConfirming(null)}
+            xstyle={styles.action}
+          >
+            Cancel
+          </Button>
+          <Button
+            disabled={blockChatMutation.isPending}
+            onClick={block}
+            xstyle={styles.action}
+          >
+            Block
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal
+        open={confirming === 'unblockFailed'}
+        onClose={() => setConfirming(null)}
+        title={`Couldn't unblock ${name || 'them'}`}
+      >
+        <p role="alert" {...stylex.props(styles.explain)}>
+          {blockChatMutation.error?.message || 'Something went wrong.'} They
+          stay blocked until it works.
+        </p>
+        <div {...stylex.props(styles.actions)}>
+          <Button
+            variant="secondary"
+            onClick={() => setConfirming(null)}
+            xstyle={styles.action}
+          >
+            Close
+          </Button>
+          <Button
+            disabled={blockChatMutation.isPending}
+            onClick={unblock}
+            xstyle={styles.action}
+          >
+            Try again
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal
+        open={confirming === 'leave'}
+        onClose={() => setConfirming(null)}
         title="Leave this chat?"
       >
         <p {...stylex.props(styles.explain)}>
@@ -119,7 +218,7 @@ export default function ChatRoomHeader({
         <div {...stylex.props(styles.actions)}>
           <Button
             variant="secondary"
-            onClick={() => setConfirming(false)}
+            onClick={() => setConfirming(null)}
             xstyle={styles.action}
           >
             Cancel
