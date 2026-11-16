@@ -9,6 +9,27 @@ import { fillHeightMarker } from '@/styles/tokens.stylex';
 const VISIBLE_TOP = '--visible-top';
 const VISIBLE_HEIGHT = '--visible-height';
 
+// whether a drag from the element can scroll it or one around it: the message list, a textarea of several lines, the
+// photos picked, a modal. not the input bar or the header, which have nothing of their own to scroll
+function scrollsInside(target: EventTarget | null) {
+  for (
+    let element = target instanceof Element ? target : null;
+    element && element !== document.body;
+    element = element.parentElement
+  ) {
+    const { overflowX, overflowY } = getComputedStyle(element);
+    if (
+      (/auto|scroll/.test(overflowY) &&
+        element.scrollHeight > element.clientHeight) ||
+      (/auto|scroll/.test(overflowX) &&
+        element.scrollWidth > element.clientWidth)
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
 // the chats screen's box: data-fill-height gives it the window's height (Tab's when.descendant keys). only while it's
 // shown, so a page opened after it isn't sized as the chats screen while this one is kept hidden
 export default function ChatFrame({ children }: { children: React.ReactNode }) {
@@ -26,8 +47,9 @@ export default function ChatFrame({ children }: { children: React.ReactNode }) {
       root.style.removeProperty(VISIBLE_TOP);
       root.style.removeProperty(VISIBLE_HEIGHT);
     };
+    let keyboardOpen = false;
     const fit = () => {
-      const keyboardOpen =
+      keyboardOpen =
         viewport.scale === 1 && viewport.height < window.innerHeight - 1;
       if (keyboardOpen) {
         root.style.setProperty(VISIBLE_TOP, `${viewport.offsetTop}px`);
@@ -36,12 +58,28 @@ export default function ChatFrame({ children }: { children: React.ReactNode }) {
         clear();
       }
     };
+    // ios fires several resize and scroll events as the keyboard slides in: one fit a frame, just before it's drawn,
+    // so a frame with the screen not yet where ios moved the view (a blip of the input) is less likely
+    let frame = 0;
+    const fitNextFrame = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(fit);
+    };
+    // the page stays as tall as without the keyboard, so with it open there's page under the keyboard to drag into
+    // view, which slid the screen up off the keyboard. no dragging the page then, only what scrolls inside it
+    const holdPage = (event: TouchEvent) => {
+      if (keyboardOpen && !scrollsInside(event.target)) event.preventDefault();
+    };
     fit();
-    viewport.addEventListener('resize', fit);
-    viewport.addEventListener('scroll', fit);
+    viewport.addEventListener('resize', fitNextFrame);
+    viewport.addEventListener('scroll', fitNextFrame);
+    // not passive, or it couldn't prevent the drag
+    document.addEventListener('touchmove', holdPage, { passive: false });
     return () => {
-      viewport.removeEventListener('resize', fit);
-      viewport.removeEventListener('scroll', fit);
+      cancelAnimationFrame(frame);
+      viewport.removeEventListener('resize', fitNextFrame);
+      viewport.removeEventListener('scroll', fitNextFrame);
+      document.removeEventListener('touchmove', holdPage);
       clear();
     };
   }, []);
