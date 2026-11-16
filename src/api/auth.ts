@@ -70,3 +70,12 @@ export async function startAuthenticatorReset(
   });
   return data;
 }
+
+// ends this session: the server forgets the refresh token and clears its cookie
+export async function logout(): Promise<void> {
+  await axiosInstance.post('/auth/account/logout');
+}
+
+export async function deleteAccount(): Promise<void> {
+  await axiosInstance.delete('/auth/account/delete');
+}

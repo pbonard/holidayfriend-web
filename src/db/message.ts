@@ -530,6 +530,25 @@ export async function loadEarlier(user: string, roomId: string) {
   notify();
 }
 
+// logged out or the account deleted: every chat kept in this browser goes, everyone's, unsent messages too (db/pending's
+// store). cleared rather than the database deleted: another tab's open connection would block deleting it
+export async function clearChats() {
+  userId = null;
+  rooms = null;
+  loading = null;
+  chatRoomMessagesMap = NO_CHAT_ROOM_MESSAGES;
+  notify();
+  try {
+    const db = await openDB();
+    const stores = ['messages', 'rooms', 'meta', 'pending'];
+    const tx = db.transaction(stores, 'readwrite');
+    stores.forEach((store) => tx.objectStore(store).clear());
+    await done(tx);
+  } catch {
+    // IndexedDB unavailable: nothing was kept
+  }
+}
+
 // this tab's id for my-server's chat, which keeps one socket per person and device: a tab of its own, so two tabs
 // don't take each other's place. sessionStorage is the tab's, and stays through a reload
 export function getDeviceId() {

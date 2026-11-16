@@ -368,6 +368,18 @@ export async function restorePending(user: string) {
   notify();
 }
 
+// logged out or the account deleted: none shown, their object urls let go. their records go with db/message's clearChats
+export function forgetPending() {
+  Object.values(pending).forEach((items) =>
+    items.forEach((item) =>
+      item.urls.forEach((url) => URL.revokeObjectURL(url)),
+    ),
+  );
+  userId = null;
+  pending = {};
+  notify();
+}
+
 // whether a message chat relayed is this pending one whose answer never came (the page went away meanwhile), only
 // when that's certain: photos and videos by their uploaded files, names chat made for this one alone and takes once.
 // a text has nothing of chat's to know it by: it stays not sent until it's retried or deleted, even the rare one chat

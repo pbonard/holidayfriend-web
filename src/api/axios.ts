@@ -19,6 +19,11 @@ export function setAccessToken(token: string) {
   accessToken = token;
 }
 
+// logging out or deleting the account: the next request has to refresh, and with the cookie gone it fails as not logged in
+export function clearAccessToken() {
+  accessToken = null;
+}
+
 // requests failing at the same time wait for the same refresh
 function refreshAccessToken() {
   refreshing ??= axiosInstance

@@ -48,3 +48,16 @@ export function saveDraft(user: string, roomId: string, text: string) {
   }
   listeners.forEach((listener) => listener());
 }
+
+// logged out or the account deleted: every chat's draft goes, everyone's
+export function clearDrafts() {
+  drafts.clear();
+  try {
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith(`${PREFIX}:`))
+      .forEach((key) => localStorage.removeItem(key));
+  } catch {
+    // unreadable: nothing to remove
+  }
+  listeners.forEach((listener) => listener());
+}
