@@ -75,6 +75,7 @@ export default function ChatFrame({ children }: { children: React.ReactNode }) {
     viewport.addEventListener('scroll', fitNextFrame);
     // not passive, or it couldn't prevent the drag
     document.addEventListener('touchmove', holdPage, { passive: false });
+
     return () => {
       cancelAnimationFrame(frame);
       viewport.removeEventListener('resize', fitNextFrame);
