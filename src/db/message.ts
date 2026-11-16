@@ -421,9 +421,29 @@ async function refresh(user: string, roomIds: string[], tellOthers: boolean) {
   notify();
 }
 
-// the person's chats' summaries, read once per person
-function load(user: string) {
-  if (userId === user) return;
+export function subscribeChats(listener: () => void) {
+  if (listeners.size === 0 && typeof BroadcastChannel !== 'undefined') {
+    channel = new BroadcastChannel(DB_NAME);
+    // another tab changed these chats: read again here, not told back
+    channel.onmessage = (
+      event: MessageEvent<{ user: string; roomIds: string[] }>,
+    ) => {
+      void refresh(event.data.user, event.data.roomIds, false);
+    };
+  }
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) {
+      channel?.close();
+      channel = null;
+    }
+  };
+}
+
+// every chat's summary, null until they're read: read once per person, the first time they're asked for
+export function getRooms(user: string): Rooms | null {
+  if (userId === user) return rooms;
   userId = user;
   rooms = null;
   chatRoomMessagesMap = NO_CHAT_ROOM_MESSAGES;
@@ -447,31 +467,6 @@ function load(user: string) {
     }
     notify();
   })();
-}
-
-export function subscribeChats(listener: () => void) {
-  if (listeners.size === 0 && typeof BroadcastChannel !== 'undefined') {
-    channel = new BroadcastChannel(DB_NAME);
-    // another tab changed these chats: read again here, not told back
-    channel.onmessage = (
-      event: MessageEvent<{ user: string; roomIds: string[] }>,
-    ) => {
-      void refresh(event.data.user, event.data.roomIds, false);
-    };
-  }
-  listeners.add(listener);
-  return () => {
-    listeners.delete(listener);
-    if (listeners.size === 0) {
-      channel?.close();
-      channel = null;
-    }
-  };
-}
-
-// every chat's summary, null until they're read
-export function getRooms(user: string): Rooms | null {
-  load(user);
   return rooms;
 }
 
@@ -485,7 +480,8 @@ export function getServerChatRoomMessagesMap(): ChatRoomMessagesMap {
 
 // a chat opened: its latest PAGE messages into memory, once
 export async function openRoom(user: string, roomId: string) {
-  load(user);
+  // the person's chats read, if they aren't yet
+  getRooms(user);
   if (chatRoomMessagesMap[roomId]) return;
   const db = await openDB();
   const index = db
