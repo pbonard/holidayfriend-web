@@ -81,8 +81,13 @@ const styles = stylex.create({
   page: {
     display: 'flex',
     flexDirection: { default: 'column', [breakpoints.desktop]: 'row' },
-    minHeight: '100vh',
-    // the chats screen: the window's height and no more, its lists scroll inside it
+    // the chats screen: the window's height and no more, its lists scroll inside it. no 100vh floor there: on ios
+    // safari 100vh is the window with its bars hidden, taller than 100dvh, and min-height beats height, which put
+    // the message input under safari's bottom bar
+    minHeight: {
+      default: '100vh',
+      [stylex.when.descendant('[data-fill-height]', fillHeightMarker)]: 0,
+    },
     height: {
       default: 'auto',
       [stylex.when.descendant('[data-fill-height]', fillHeightMarker)]: '100dvh',

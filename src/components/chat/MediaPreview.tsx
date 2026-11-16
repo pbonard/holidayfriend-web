@@ -1,14 +1,8 @@
 import Image from 'next/image';
 import * as stylex from '@stylexjs/stylex';
 import { auth } from '@/styles/tokens.stylex';
+import type { Attachment } from '@/types/chat';
 import CloseIcon from '@/components/icons/CloseIcon';
-
-// a photo or video picked, not sent yet. url: the file's object url, what its thumbnail shows
-export type Attachment = {
-  id: string;
-  file: File;
-  url: string;
-};
 
 type MediaPreviewProps = {
   attachments: Attachment[];
