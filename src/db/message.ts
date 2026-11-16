@@ -158,7 +158,9 @@ export function isBlockEvent(message: MessagingResponse) {
 
 // a kept message in a line, for the chat list: its text (a text's, or an accepted invite's), or what files it has
 export function previewOf(message: MessagingResponse) {
-  const count = message.contents.length;
+  // one kept before saving made it a list may have none
+  const contents = message.contents ?? [];
+  const count = contents.length;
   switch (message.contentType) {
     case 'image':
       return count > 1 ? `${count} photos` : 'Photo';
@@ -171,7 +173,7 @@ export function previewOf(message: MessagingResponse) {
     case 'unblock':
       return 'Unblocked';
     default:
-      return message.contents[0] ?? '';
+      return contents[0] ?? '';
   }
 }
 
@@ -213,7 +215,9 @@ export async function putMessages(
   const changed = new Set<string>();
 
   // oldest first, so a quit or delete meets what it removes
-  for (const message of [...messages].sort((a, b) => (a.id < b.id ? -1 : 1))) {
+  for (const received of [...messages].sort((a, b) => (a.id < b.id ? -1 : 1))) {
+    // chat sends none as null (an empty list in its storage comes back as nothing), a block's or a quit's
+    const message = { ...received, contents: received.contents ?? [] };
     const { roomId } = message;
     const room = (await promised(roomStore.get([user, roomId]))) as
       | RoomRecord
