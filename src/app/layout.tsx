@@ -4,6 +4,7 @@ import * as stylex from "@stylexjs/stylex";
 import {
   auth,
   breakpoints,
+  fillHeightMarker,
   fonts,
   rootMarker,
   surfaceMarker,
@@ -69,6 +70,22 @@ const styles = stylex.create({
       default: auth.page,
       [stylex.when.descendant('[data-page-background="surface"]', surfaceMarker)]:
         auth.surface,
+    },
+    // the chats screen (ChatFrame): a page that doesn't scroll, only its lists inside it do, as telegram web's. so
+    // there's no page to drag away from the input, and with a phone's keyboard open ios only slides the view up to
+    // show the input, and back down as it closes
+    position: {
+      default: "static",
+      [stylex.when.descendant("[data-fill-height]", fillHeightMarker)]: "fixed",
+    },
+    inset: {
+      default: null,
+      [stylex.when.descendant("[data-fill-height]", fillHeightMarker)]: 0,
+    },
+    overflow: {
+      default: null,
+      [stylex.when.descendant("[data-fill-height]", fillHeightMarker)]:
+        "hidden",
     },
   },
   // every page is dark. 100dvh, not 100vh: on ios safari 100vh is the window with its bars hidden, so a body that tall
