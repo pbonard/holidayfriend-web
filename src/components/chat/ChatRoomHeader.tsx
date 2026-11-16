@@ -14,9 +14,12 @@ import { profilePath } from '@/utils';
 export default function ChatRoomHeader({
   roomId,
   name,
+  onSelectMessages,
 }: {
   roomId: string;
   name: string;
+  // starts choosing messages to delete. not given when there's nothing to choose
+  onSelectMessages?: () => void;
 }) {
   const router = useRouter();
   const leaveChatMutation = useLeaveChat(roomId);
@@ -72,6 +75,19 @@ export default function ChatRoomHeader({
           >
             View profile
           </Link>
+          {onSelectMessages && (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                onSelectMessages();
+              }}
+              {...stylex.props(styles.item)}
+            >
+              Select messages
+            </button>
+          )}
           <button
             type="button"
             role="menuitem"

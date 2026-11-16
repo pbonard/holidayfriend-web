@@ -7,7 +7,8 @@ import { useMyId } from '@/hooks/useChat';
 import { useGetProfile } from '@/hooks/useProfile';
 import { auth } from '@/styles/tokens.stylex';
 import type { ChatPreview } from '@/types/chat';
-import { chatPath, timeAgo, timeOfId } from '@/utils';
+import { chatPath } from '@/utils';
+import { timeAgo, timeOfId } from '@/utils/time';
 
 type ChatPreviewItemProps = {
   preview: ChatPreview;
@@ -70,6 +71,11 @@ const styles = stylex.create({
     gap: '12px',
     paddingBlock: '10px',
     paddingInline: '12px',
+    // a line around the open one only, as the sidebar's current page. always there and unseen on the others, so
+    // nothing moves between them
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: 'transparent',
     borderRadius: '12px',
     color: auth.text,
     textDecoration: 'none',
@@ -77,12 +83,10 @@ const styles = stylex.create({
     outline: { default: 'none', ':focus-visible': `2px solid ${auth.link}` },
     outlineOffset: '-2px',
   },
-  // the accent, faint
+  // as the sidebar's current page (NavigationList's itemActive)
   open: {
-    backgroundColor: {
-      default: 'rgba(122, 64, 48, 0.28)',
-      ':hover': 'rgba(122, 64, 48, 0.36)',
-    },
+    borderColor: auth.border,
+    backgroundColor: auth.control,
   },
   avatar: {
     display: 'flex',

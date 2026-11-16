@@ -1,10 +1,10 @@
 import { axiosInstance } from '@/api/axios';
-import type { ChatMessage, SendMessageRequest } from '@/types/chat';
+import type { MessagingResponse, SendMessageRequest } from '@/types/chat';
 
 // the messages to the person logged in after the cursor, a message id: what arrived while no socket was open.
 // my-server's chat answers null for none
-export async function getRecentMessages(cursor: string): Promise<ChatMessage[]> {
-  const { data } = await axiosInstance.get<ChatMessage[] | null>(
+export async function getRecentMessages(cursor: string): Promise<MessagingResponse[]> {
+  const { data } = await axiosInstance.get<MessagingResponse[] | null>(
     '/chat/messaging/recent',
     { params: { cursor } },
   );

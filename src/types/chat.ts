@@ -1,5 +1,5 @@
-// what my-server's chat sends, on the WebSocket and from GET /chat/messaging/recent (MessagingResponse there)
-export interface ChatMessage {
+// what my-server's chat sends, on the WebSocket and from GET /chat/messaging/recent
+export interface MessagingResponse {
   // uuid v7: also when it was sent, read with timeOfId. the ids of a chat sort as their times do
   id: string;
   // a personal chat's room is the other person, whoever sent the message
@@ -25,20 +25,15 @@ export interface SendMessageRequest {
   noPush: true;
 }
 
-// a message as this browser keeps it in IndexedDB: as chat sent it. read its text with textOf
-export interface StoredMessage {
-  // chat's id for it: its time is read from it, and the messages of a chat sort by it
-  id: string;
-  fromId: string;
-  contentType: string;
-  contents: string[];
-}
+// a message as the screens get it, kept in IndexedDB as chat sent it. read its text with textOf. no createdAt as on
+// mobile: its time is read from its id
+export type Message = MessagingResponse;
 
 // a chat's summary as this browser keeps it (db/message's rooms store): what the list and the badge need, without
 // its messages
 export interface RoomSummary {
   // its newest message
-  last: StoredMessage;
+  last: Message;
   // the other person's newest message's id, '' when none
   lastFromOtherId: string;
   // the newest message read here, '' when none. it's unread while the other person's newest is after it
@@ -48,6 +43,6 @@ export interface RoomSummary {
 // a chat in the list: its latest message, and whether there's something unread
 export interface ChatPreview {
   roomId: string;
-  last: StoredMessage;
+  last: Message;
   unread: boolean;
 }

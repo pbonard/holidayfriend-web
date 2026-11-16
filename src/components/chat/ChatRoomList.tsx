@@ -9,32 +9,7 @@ import { useMyProfileBrief } from '@/hooks/useProfile';
 import { auth, breakpoints, chatRoomMarker } from '@/styles/tokens.stylex';
 import StatusText from '@/components/StatusText';
 import ChatPreviewItem from '@/components/chat/ChatPreviewItem';
-
-// how often "1m ago" and such are worked out again
-const MINUTE = 60 * 1000;
-
-// the list's clock, a minute at a time. none while prerendering, which mustn't read the time: it would be the
-// build's. it's read anew as a list starts watching it, so one opened later doesn't show an old time
-let minute: Date | null = null;
-
-function subscribeMinute(listener: () => void) {
-  minute = new Date();
-  listener();
-  const timer = setInterval(() => {
-    minute = new Date();
-    listener();
-  }, MINUTE);
-  return () => clearInterval(timer);
-}
-
-function getMinute() {
-  minute ??= new Date();
-  return minute;
-}
-
-function getServerMinute() {
-  return null;
-}
+import { getMinute, subscribeMinute } from '@/utils/time';
 
 // the chats kept in this browser, the newest first. the open one's marked: its id is known while prerendering only
 // on /chats, a chat's page has it only at request time, so the list shows without it marked until then
@@ -66,7 +41,12 @@ function CurrentChatItems() {
 
 function ChatRoomItems({ openRoomId }: { openRoomId: string | null }) {
   const previews = useChatPreviews();
-  const now = useSyncExternalStore(subscribeMinute, getMinute, getServerMinute);
+  const now = useSyncExternalStore(
+    subscribeMinute,
+    getMinute,
+    // none while prerendering
+    () => null,
+  );
 
   // nothing while they're read from IndexedDB, a moment
   if (previews === null) {

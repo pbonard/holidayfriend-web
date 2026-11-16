@@ -1,25 +1,45 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import * as stylex from '@stylexjs/stylex';
 import { PROFILE_NOT_FOUND } from '@/api/profile';
-import { useRoomMessages } from '@/hooks/useChat';
+import { usePendingMessages, useRoomMessages } from '@/hooks/useChat';
 import { useGetProfile } from '@/hooks/useProfile';
 import { auth, breakpoints } from '@/styles/tokens.stylex';
 import ChatRoomHeader from '@/components/chat/ChatRoomHeader';
 import MessageInput from '@/components/chat/MessageInput';
 import MessageList from '@/components/chat/MessageList';
+import MessageSelectionBar from '@/components/chat/MessageSelectionBar';
 import ChevronLeftIcon from '@/components/icons/ChevronLeftIcon';
 import { profilePath } from '@/utils';
 
 // the chat with one person, as the mobile app's chat screen: who, the messages from this browser's IndexedDB,
 // and the input. the other person's messages arrive on the socket (ChatConnection) and show here as they're kept
 export default function ChatRoom({ roomId }: { roomId: string }) {
-  const { myId, messages, hasEarlier, loadEarlier, exists } = useRoomMessages(roomId);
+  const { myId, messages, hasEarlier, loadEarlier, exists } =
+    useRoomMessages(roomId);
+  const pending = usePendingMessages(roomId);
   const profile = useGetProfile(roomId);
   const gone = profile.isError && profile.error.message === PROFILE_NOT_FOUND;
   const name = profile.data?.name || (profile.isPending ? '' : 'Someone');
   const initial = name.trim().charAt(0).toUpperCase() || '?';
+  // the messages chosen to delete, null when not choosing
+  const [selected, setSelected] = useState<ReadonlySet<string> | null>(null);
+  // deleting goes to the other person too: only in a chat there is, with them still there
+  const canSelect = exists && !gone && (messages?.length ?? 0) > 0;
+  const selecting = selected !== null && canSelect;
+  // those still here: one deleted meanwhile, from another tab or device, is no longer chosen
+  const selectedIds =
+    messages?.filter(({ id }) => selected?.has(id)).map(({ id }) => id) ?? [];
+
+  const toggle = (id: string) => {
+    setSelected((chosen) => {
+      const next = new Set(chosen);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  };
 
   return (
     <>
@@ -38,26 +58,48 @@ export default function ChatRoom({ roomId }: { roomId: string }) {
           </span>
           <span {...stylex.props(styles.name)}>{name}</span>
         </Link>
-        <ChatRoomHeader roomId={roomId} name={name} />
+        <ChatRoomHeader
+          roomId={roomId}
+          name={name}
+          onSelectMessages={
+            canSelect ? () => setSelected(new Set()) : undefined
+          }
+        />
       </header>
 
       <MessageList
         messages={messages}
         hasEarlier={hasEarlier}
         onLoadEarlier={loadEarlier}
+        pending={pending}
         myId={myId}
         name={name}
+        selection={selecting ? { ids: selected, onToggle: toggle } : undefined}
       />
 
       {/* only in a chat there is: messages go to someone who accepted an invite, and not to a profile that's gone */}
+      {selecting && (
+        <MessageSelectionBar
+          roomId={roomId}
+          name={name}
+          ids={selectedIds}
+          onDone={() => setSelected(null)}
+        />
+      )}
+      {/* hidden while choosing, not gone: what was being written is still there after */}
       {exists && !gone && (
-        <MessageInput roomId={roomId} name={name} />
+        <div hidden={selecting} {...stylex.props(styles.input)}>
+          <MessageInput roomId={roomId} name={name} />
+        </div>
       )}
     </>
   );
 }
 
 const styles = stylex.create({
+  input: {
+    flexShrink: 0,
+  },
   header: {
     display: 'flex',
     alignItems: 'center',
