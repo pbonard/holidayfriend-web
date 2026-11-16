@@ -1,16 +1,22 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   confirmAuthenticatorSetup,
+  deleteAccount,
   loginWithAuthenticator,
+  logout,
   signInWithApple,
   signInWithGoogle,
   startAuthenticatorReset,
   startEmailLogin,
   verifyEmailOTP,
 } from '@/api/auth';
-import { setAccessToken } from '@/api/axios';
+import { clearAccessToken, setAccessToken } from '@/api/axios';
 import { EMAIL, START_OVER, VERIFICATION_ID } from '@/constants';
 import { useAuthContext } from '@/contexts/AuthContext';
+import { clearMedia } from '@/db/media';
+import { clearChats } from '@/db/message';
+import { forgetPending } from '@/db/pending';
+import { clearDrafts } from '@/utils/chatDraft';
 
 export function useSignInWithGoogle() {
   return useMutation({
@@ -143,5 +149,34 @@ export function useLoginWithAuthenticator() {
       setAccessToken(data.accessToken);
       sessionStorage.removeItem(EMAIL);
     },
+  });
+}
+
+// nothing of this account may show for the next one to log in on this browser: its chats neither, kept here as they
+// are. waited for before the mutation succeeds, so the page moves on only once they're gone
+function useForgetSession() {
+  const queryClient = useQueryClient();
+  return async () => {
+    clearAccessToken();
+    queryClient.clear();
+    forgetPending();
+    clearDrafts();
+    await Promise.all([clearChats(), clearMedia()]);
+  };
+}
+
+export function useLogout() {
+  const forgetSession = useForgetSession();
+  return useMutation({
+    mutationFn: logout,
+    onSuccess: forgetSession,
+  });
+}
+
+export function useDeleteAccount() {
+  const forgetSession = useForgetSession();
+  return useMutation({
+    mutationFn: deleteAccount,
+    onSuccess: forgetSession,
   });
 }

@@ -100,6 +100,15 @@ export async function keepMedia(
   );
 }
 
+// logged out or the account deleted: the chats' photos and videos kept in this browser go
+export async function clearMedia() {
+  try {
+    if (typeof caches !== 'undefined') await caches.delete(CACHE);
+  } catch {
+    // blocked site data: nothing was kept
+  }
+}
+
 // the addresses <img> and <video> show the files from (object urls), one per file, shared by everyone showing it.
 // an address holds its file in memory until it's let go: it is, a moment after the last one showing it stops (the
 // moment: one shown again right away, a page coming back into view, keeps it)

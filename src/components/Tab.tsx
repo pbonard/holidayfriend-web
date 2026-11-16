@@ -13,6 +13,7 @@ import {
 import ChatConnection from '@/components/chat/ChatConnection';
 import SidebarCollapseIcon from '@/components/icons/SidebarCollapseIcon';
 import NavigationList from '@/components/NavigationList';
+import SettingsMenu from '@/components/SettingsMenu';
 import {
   isSidebarCollapsed,
   setSidebarCollapsed,
@@ -58,6 +59,7 @@ export default function Tab({ children }: { children: React.ReactNode }) {
           </button>
         </div>
         <NavigationList />
+        <SettingsMenu />
       </aside>
       <main {...stylex.props(styles.main)}>{children}</main>
       <ChatConnection />
