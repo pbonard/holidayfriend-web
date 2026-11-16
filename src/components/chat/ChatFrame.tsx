@@ -36,12 +36,20 @@ export default function ChatFrame({ children }: { children: React.ReactNode }) {
         clear();
       }
     };
+    // ios fires several resize and scroll events as the keyboard slides in: one fit a frame, just before it's drawn,
+    // so a frame with the screen not yet where ios moved the view (a blip of the input) is less likely
+    let frame = 0;
+    const fitNextFrame = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(fit);
+    };
     fit();
-    viewport.addEventListener('resize', fit);
-    viewport.addEventListener('scroll', fit);
+    viewport.addEventListener('resize', fitNextFrame);
+    viewport.addEventListener('scroll', fitNextFrame);
     return () => {
-      viewport.removeEventListener('resize', fit);
-      viewport.removeEventListener('scroll', fit);
+      cancelAnimationFrame(frame);
+      viewport.removeEventListener('resize', fitNextFrame);
+      viewport.removeEventListener('scroll', fitNextFrame);
       clear();
     };
   }, []);

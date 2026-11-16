@@ -264,8 +264,7 @@ export default function MessageInput({
 const styles = stylex.create({
   bar: {
     flexShrink: 0,
-    paddingTop: '16px',
-    paddingBottom: '10px',
+    paddingBlock: '4px',
     paddingInline: { default: '12px', [breakpoints.desktop]: '24px' },
     borderTopWidth: '1px',
     borderTopStyle: 'solid',
