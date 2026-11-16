@@ -59,3 +59,9 @@ export function timeAgo(date: Date, now = new Date()) {
     year: date.getFullYear() === now.getFullYear() ? undefined : 'numeric',
   });
 }
+
+// a length in seconds as "m:ss", for a voice message: "0:07", "2:30". 0 when it isn't known yet
+export function formatDuration(seconds: number) {
+  const whole = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`;
+}
