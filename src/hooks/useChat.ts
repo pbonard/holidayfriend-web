@@ -6,20 +6,27 @@ import {
   openMessagingSocket,
   sendMessage,
 } from '@/api/chat';
+import {
+  getPending,
+  getServerPending,
+  restorePending,
+  subscribePending,
+} from '@/db/pending';
 import { useMyProfileBrief } from '@/hooks/useProfile';
-import type { ChatMessage, ChatPreview } from '@/types/chat';
+import type { MessagingResponse, ChatPreview } from '@/types/chat';
+import { saveDraft } from '@/utils/chatDraft';
 import {
   getCursor,
   getDeviceId,
+  getChatRoomMessagesMap,
   getRooms,
-  getServerRooms,
-  getServerWindows,
-  getWindows,
+  getServerChatRoomMessagesMap,
   loadEarlier,
   markRoomRead,
   openRoom,
   removeRoom,
   saveMessages,
+  saveSentMessage,
   subscribeChats,
   type Rooms,
 } from '@/db/message';
@@ -43,6 +50,8 @@ export function useChatConnection() {
     if (!myId) return;
     const user = myId;
     const deviceId = getDeviceId();
+    // one's own messages a reload interrupted before chat answered: back in their chats as not sent
+    void restorePending(user);
     let socket: WebSocket | null = null;
     let stopped = false;
     let failures = 0;
@@ -50,8 +59,8 @@ export function useChatConnection() {
     // a socket that closed without ever opening: the gateway may have turned its token away
     let staleToken = false;
 
-    const receive = (messages: ChatMessage[]) => {
-      void saveMessages(user, messages, { fromServer: true });
+    const receive = (messages: MessagingResponse[]) => {
+      void saveMessages(user, messages);
     };
 
     // what arrived while no socket was open. after the socket opens, so nothing sent in between is missed: one that
@@ -88,7 +97,7 @@ export function useChatConnection() {
       };
       opening.onmessage = (event: MessageEvent<string>) => {
         try {
-          receive([JSON.parse(event.data) as ChatMessage]);
+          receive([JSON.parse(event.data) as MessagingResponse]);
         } catch {
           // chat writes its errors as plain text before closing
         }
@@ -139,11 +148,9 @@ export function useChatConnection() {
 
 // the chats kept in this browser for the person logged in, their summaries. null until they're read
 function useRooms(myId: string | undefined): Rooms | null {
-  const getSnapshot = useCallback(
-    () => (myId ? getRooms(myId) : getServerRooms()),
-    [myId],
-  );
-  return useSyncExternalStore(subscribeChats, getSnapshot, getServerRooms);
+  const getSnapshot = useCallback(() => (myId ? getRooms(myId) : null), [myId]);
+  // null while prerendering: IndexedDB is the browser's
+  return useSyncExternalStore(subscribeChats, getSnapshot, () => null);
 }
 
 // the list of chats, the one with the newest message first. null until they're read
@@ -175,9 +182,11 @@ export function useHasUnreadChats() {
 export function useRoomMessages(roomId: string) {
   const myId = useMyId();
   const summary = useRooms(myId)?.[roomId];
-  const window = useSyncExternalStore(subscribeChats, getWindows, getServerWindows)[
-    roomId
-  ];
+  const chatRoomMessages = useSyncExternalStore(
+    subscribeChats,
+    getChatRoomMessagesMap,
+    getServerChatRoomMessagesMap,
+  )[roomId];
   const lastId = summary?.last.id;
 
   useEffect(() => {
@@ -203,35 +212,11 @@ export function useRoomMessages(roomId: string) {
 
   return {
     myId,
-    messages: window?.messages,
-    hasEarlier: window?.hasEarlier ?? false,
+    messages: chatRoomMessages?.messages,
+    hasEarlier: chatRoomMessages?.hasEarlier ?? false,
     loadEarlier: showEarlier,
     exists: Boolean(summary),
   };
-}
-
-// a text message to the other person of the chat. kept here at once from its answer: the socket brings it back
-// too, and it's kept once
-export function useSendMessage(roomId: string) {
-  const myId = useMyId();
-  return useMutation({
-    mutationFn: (text: string) =>
-      sendMessage({
-        toIdType: 'personal',
-        toId: roomId,
-        contentType: 'text',
-        contents: [text],
-        noPush: true,
-      }),
-    onSuccess: ({ id }, text) => {
-      if (!myId) return;
-      void saveMessages(
-        myId,
-        [{ id, roomId, fromId: myId, contentType: 'text', contents: [text] }],
-        { fromServer: false },
-      );
-    },
-  });
 }
 
 // leaves the chat: chat drops it from the person's messages (the other person keeps theirs), and this browser does.
@@ -248,7 +233,54 @@ export function useLeaveChat(roomId: string) {
         noPush: true,
       }),
     onSuccess: () => {
-      if (myId) void removeRoom(myId, roomId);
+      if (!myId) return;
+      void removeRoom(myId, roomId);
+      // nothing to finish writing there
+      saveDraft(myId, roomId, '');
     },
   });
+}
+
+// deletes messages for both people, as mobile's Delete: a "delete" message for each, which chat relays to the other
+// person's devices and one's own others. chat's answer is success: each goes from here as soon as its delete is
+// answered (saveSentMessage), so when some fail, only those are left
+export function useDeleteMessages(roomId: string) {
+  const myId = useMyId();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const results = await Promise.allSettled(
+        ids.map(async (messageId) => {
+          const contents = [messageId];
+          const { id } = await sendMessage({
+            toIdType: 'personal',
+            toId: roomId,
+            contentType: 'delete',
+            contents,
+            noPush: true,
+          });
+          if (myId) {
+            await saveSentMessage(myId, {
+              id,
+              roomId,
+              fromId: myId,
+              contentType: 'delete',
+              contents,
+            });
+          }
+        }),
+      );
+      const failed = results.filter(
+        ({ status }) => status === 'rejected',
+      ).length;
+      if (failed === ids.length)
+        throw new Error("Couldn't delete the messages.");
+      if (failed > 0) throw new Error(`Couldn't delete ${failed} of them.`);
+    },
+  });
+}
+
+// a chat's own messages on their way, or not sent, shown at its end (db/pending)
+export function usePendingMessages(roomId: string) {
+  const getSnapshot = useCallback(() => getPending(roomId), [roomId]);
+  return useSyncExternalStore(subscribePending, getSnapshot, getServerPending);
 }

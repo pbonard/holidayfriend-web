@@ -8,7 +8,8 @@ import type { InviteListItem } from '@/types/invite';
 import Button from '@/components/Button';
 import PersonHeader from '@/components/PersonHeader';
 import MoreIcon from '@/components/icons/MoreIcon';
-import { chatPath, timeAgo, timeOfId } from '@/utils';
+import { chatPath } from '@/utils';
+import { timeAgo, timeOfId } from '@/utils/time';
 import { basedInLabel } from '@/utils/citySearch';
 
 // the server's 404 body for one already answered (in another tab) or sent again since with a new id
