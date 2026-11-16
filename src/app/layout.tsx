@@ -71,9 +71,10 @@ const styles = stylex.create({
         auth.surface,
     },
   },
-  // every page is dark
+  // every page is dark. 100dvh, not 100vh: on ios safari 100vh is the window with its bars hidden, so a body that tall
+  // let the chats screen (Tab, 100dvh) scroll up by the difference, a gap under its input
   body: {
-    minHeight: "100vh",
+    minHeight: "100dvh",
     backgroundColor: auth.page,
     color: auth.text,
     fontFamily: fonts.sans,

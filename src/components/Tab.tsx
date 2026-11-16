@@ -90,7 +90,9 @@ const styles = stylex.create({
     },
     height: {
       default: 'auto',
-      [stylex.when.descendant('[data-fill-height]', fillHeightMarker)]: '100dvh',
+      // above the keyboard while it's open (ChatFrame sets the variable): ios doesn't shrink 100dvh for it
+      [stylex.when.descendant('[data-fill-height]', fillHeightMarker)]:
+        'var(--above-keyboard-height, 100dvh)',
     },
     backgroundColor: auth.page,
     color: auth.text,
