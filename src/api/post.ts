@@ -53,6 +53,13 @@ export async function markNotInterested(id: string): Promise<void> {
   await axiosInstance.post('/api/post/not-interested', request);
 }
 
+// reports someone's post, from the more button of its card or its page. the server checks it against the rules in the
+// background and deletes it when it breaks them, so it answers before that's decided
+export async function reportPost(id: string): Promise<void> {
+  const request: IdInterface = { id };
+  await axiosInstance.post('/api/post/report', request);
+}
+
 // the ids of every post the viewer marked "Not interested". apart from the feed, so a city's feed is the same for
 // everyone
 export async function listNotInterestedPostIds(): Promise<string[]> {

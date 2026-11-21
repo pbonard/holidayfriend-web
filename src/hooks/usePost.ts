@@ -16,6 +16,7 @@ import {
   listUserPosts,
   markNotInterested,
   POST_PAGE_SIZE,
+  reportPost,
   updatePost,
 } from '@/api/post';
 import type { Place, PostFeedItem } from '@/types/post';
@@ -113,6 +114,12 @@ export function useMarkNotInterested() {
         (ids = []) => (ids.includes(id) ? ids : [...ids, id]),
       ),
   });
+}
+
+// "Report post" from a card's or a page's more button. nothing to refresh: the post stays until the server's check
+// deletes it, and the feeds leave it out once they ask again
+export function useReportPost() {
+  return useMutation({ mutationFn: reportPost });
 }
 
 // a person's posts on their profile, a page at a time as a city's. writing a post refreshes it too, it's under

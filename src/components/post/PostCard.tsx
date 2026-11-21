@@ -5,10 +5,14 @@ import { ROLE_LABELS } from '@/constants';
 import { toneOf } from '@/styles/tones';
 import { auth, breakpoints, cardLinkMarker } from '@/styles/tokens.stylex';
 import type { Place, PostFeedItem } from '@/types/post';
-import { useMarkNotInterested } from '@/hooks/usePost';
+import {
+  useDeletePost,
+  useMarkNotInterested,
+  useReportPost,
+} from '@/hooks/usePost';
 import { useMyProfileBrief } from '@/hooks/useProfile';
 import DropdownMenu from '@/components/DropdownMenu';
-import DeletePostModal from '@/components/post/DeletePostModal';
+import ConfirmModal from '@/components/ConfirmModal';
 import PersonHeader from '@/components/PersonHeader';
 import HomeIcon from '@/components/icons/HomeIcon';
 import MapPinIcon from '@/components/icons/MapPinIcon';
@@ -57,8 +61,12 @@ export default function PostCard({
   // viewer before it shows, so it's known by the time the menu opens
   const myProfile = useMyProfileBrief();
   const isMine = myProfile.data?.id === post.authorId;
-  // deleting asks first, in a modal over the feed
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // deleting and reporting ask first, in a modal over the feed. one at a time, so one state says which
+  const [confirming, setConfirming] = useState<'delete' | 'report' | null>(
+    null,
+  );
+  const deletePostMutation = useDeletePost();
+  const reportPostMutation = useReportPost();
 
   // the menu stays open while it's saved, so a failure can show in it
   const markNotInterested = () => {
@@ -72,9 +80,9 @@ export default function PostCard({
   // an author who shows only their country is never the same city, even when they are
   const sameCountry = author?.country === myBasedIn?.country;
   // "Based in Seoul" when it's the viewer's city too, or their shared country when the city isn't the same or
-  // isn't shown
+  // isn't shown. never on the viewer's own post: it would only tell them where they live
   const fromHome =
-    post.role === 'local' || !author || !myBasedIn || !sameCountry
+    isMine || post.role === 'local' || !author || !myBasedIn || !sameCountry
       ? null
       : author.city === myBasedIn.city
         ? `Based in ${author.city}`
@@ -168,7 +176,7 @@ export default function PostCard({
                       danger: true,
                       onClick: () => {
                         setOptionsOpen(false);
-                        setConfirmingDelete(true);
+                        setConfirming('delete');
                       },
                     },
                   ]
@@ -178,11 +186,13 @@ export default function PostCard({
                       onClick: markNotInterested,
                       disabled: markNotInterestedMutation.isPending,
                     },
-                    // nothing behind it yet
                     {
                       label: 'Report post',
                       danger: true,
-                      onClick: () => setOptionsOpen(false),
+                      onClick: () => {
+                        setOptionsOpen(false);
+                        setConfirming('report');
+                      },
                     },
                   ]
             }
@@ -196,12 +206,28 @@ export default function PostCard({
         )}
       </header>
       {!detail && isMine && (
-        <DeletePostModal
-          open={confirmingDelete}
-          onClose={() => setConfirmingDelete(false)}
-          postId={post.id}
+        <ConfirmModal
+          open={confirming === 'delete'}
+          onClose={() => setConfirming(null)}
+          title="Delete this post?"
+          description="It's gone for good, from every city it's in. Invites you got from it stay."
+          confirmLabel="Delete"
+          fallbackError="Couldn't delete the post."
+          onConfirm={() => deletePostMutation.mutateAsync(post.id)}
           // the feeds on screen ask again once it's deleted, and the card leaves with it
-          onDeleted={() => setConfirmingDelete(false)}
+          onDone={() => setConfirming(null)}
+        />
+      )}
+      {!detail && !isMine && (
+        <ConfirmModal
+          open={confirming === 'report'}
+          onClose={() => setConfirming(null)}
+          title="Report this post?"
+          description="We'll check it against our rules, like hate, harassment, scams or ads, and take it down if it breaks them. The author isn't told who reported it."
+          confirmLabel="Report"
+          fallbackError="Couldn't report the post."
+          doneMessage="Thanks for telling us. We'll check it against our rules and take it down if it breaks them."
+          onConfirm={() => reportPostMutation.mutateAsync(post.id)}
         />
       )}
 
