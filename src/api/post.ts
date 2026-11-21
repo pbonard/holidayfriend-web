@@ -35,6 +35,11 @@ export async function getPostDetail(id: string): Promise<PostDetail> {
   return data;
 }
 
+// hides a post from the viewer, from the more button of its card. marking it again is fine
+export async function markNotInterested(id: string): Promise<void> {
+  await axiosInstance.post(`/api/post/${id}/not-interested`);
+}
+
 // one page of a person's posts for their profile, newest first, the same size and paging as a city's
 export async function listUserPosts(
   userId: string,

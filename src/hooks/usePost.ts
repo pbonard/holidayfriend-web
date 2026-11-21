@@ -10,6 +10,7 @@ import {
   getPostDetail,
   listPosts,
   listUserPosts,
+  markNotInterested,
   POST_PAGE_SIZE,
 } from '@/api/post';
 import type { Place } from '@/types/post';
@@ -38,6 +39,11 @@ export function useInfiniteCityPosts(place: Place | null) {
     getNextPageParam: (lastPage) =>
       lastPage.length < POST_PAGE_SIZE ? undefined : lastPage.at(-1)?.id,
   });
+}
+
+// "Not interested" from a card's more button
+export function useMarkNotInterested() {
+  return useMutation({ mutationFn: markNotInterested });
 }
 
 // a person's posts on their profile, a page at a time as a city's. writing a post refreshes it too, it's under

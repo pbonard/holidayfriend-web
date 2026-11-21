@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import * as stylex from '@stylexjs/stylex';
 import { useBlockChat, useCheckBlock, useLeaveChat } from '@/hooks/useChat';
 import { auth } from '@/styles/tokens.stylex';
 import Button from '@/components/Button';
+import DropdownMenu from '@/components/DropdownMenu';
 import Modal from '@/components/Modal';
 import MoreIcon from '@/components/icons/MoreIcon';
 import { profilePath } from '@/utils';
@@ -31,24 +31,6 @@ export default function ChatRoomHeader({
   const [confirming, setConfirming] = useState<
     'leave' | 'block' | 'unblockFailed' | null
   >(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // closes on a click outside it, or Esc
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: PointerEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [open]);
 
   const leave = () => {
     leaveChatMutation.mutate(undefined, {
@@ -74,73 +56,51 @@ export default function ChatRoomHeader({
   };
 
   return (
-    <div ref={menuRef} {...stylex.props(styles.anchor)}>
-      <button
-        type="button"
-        aria-label="Chat options"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((shown) => !shown)}
-        {...stylex.props(styles.trigger)}
-      >
-        <MoreIcon size={20} vertical />
-      </button>
-      {open && (
-        <div role="menu" {...stylex.props(styles.menu)}>
-          <Link
-            role="menuitem"
-            href={profilePath(roomId)}
-            onClick={() => setOpen(false)}
-            {...stylex.props(styles.item)}
-          >
-            View profile
-          </Link>
-          {onSelectMessages && (
-            <button
-              type="button"
-              role="menuitem"
-              onClick={() => {
-                setOpen(false);
-                onSelectMessages();
-              }}
-              {...stylex.props(styles.item)}
-            >
-              Select messages
-            </button>
-          )}
-          {didBlock !== undefined && (
-            <button
-              type="button"
-              role="menuitem"
-              disabled={blockChatMutation.isPending}
-              onClick={() => {
-                setOpen(false);
-                // unblocking undoes it at once, blocking asks first
-                if (didBlock) {
-                  unblock();
-                } else {
-                  blockChatMutation.reset();
-                  setConfirming('block');
-                }
-              }}
-              {...stylex.props(styles.item, !didBlock && styles.danger)}
-            >
-              {didBlock ? 'Unblock' : 'Block'}
-            </button>
-          )}
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => {
+    <div {...stylex.props(styles.anchor)}>
+      <DropdownMenu
+        open={open}
+        onOpenChange={setOpen}
+        label="Chat options"
+        triggerStyle={styles.trigger}
+        trigger={<MoreIcon size={20} vertical />}
+        items={[
+          {
+            label: 'View profile',
+            href: profilePath(roomId),
+            onClick: () => setOpen(false),
+          },
+          onSelectMessages && {
+            label: 'Select messages',
+            onClick: () => {
+              setOpen(false);
+              onSelectMessages();
+            },
+          },
+          didBlock !== undefined && {
+            label: didBlock ? 'Unblock' : 'Block',
+            danger: !didBlock,
+            disabled: blockChatMutation.isPending,
+            onClick: () => {
+              setOpen(false);
+              // unblocking undoes it at once, blocking asks first
+              if (didBlock) {
+                unblock();
+              } else {
+                blockChatMutation.reset();
+                setConfirming('block');
+              }
+            },
+          },
+          {
+            label: 'Leave chat',
+            danger: true,
+            onClick: () => {
               setOpen(false);
               setConfirming('leave');
-            }}
-            {...stylex.props(styles.item, styles.danger)}
-          >
-            Leave chat
-          </button>
-        </div>
-      )}
+            },
+          },
+        ]}
+      />
 
       <Modal
         open={confirming === 'block'}
@@ -242,51 +202,9 @@ const styles = stylex.create({
     flexShrink: 0,
   },
   trigger: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
     width: '40px',
     height: '40px',
-    borderWidth: 0,
-    borderRadius: '10px',
-    backgroundColor: { default: 'transparent', ':hover': auth.control },
     color: auth.text,
-    cursor: 'pointer',
-    outline: { default: 'none', ':focus-visible': `2px solid ${auth.link}` },
-  },
-  menu: {
-    position: 'absolute',
-    top: 'calc(100% + 6px)',
-    right: 0,
-    zIndex: 10,
-    display: 'flex',
-    flexDirection: 'column',
-    minWidth: '180px',
-    padding: '6px',
-    borderWidth: '1px',
-    borderStyle: 'solid',
-    borderColor: auth.border,
-    borderRadius: '12px',
-    backgroundColor: auth.surface,
-    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.45)',
-  },
-  item: {
-    display: 'block',
-    width: '100%',
-    paddingBlock: '10px',
-    paddingInline: '12px',
-    borderWidth: 0,
-    borderRadius: '8px',
-    backgroundColor: { default: 'transparent', ':hover': auth.control },
-    color: auth.text,
-    fontFamily: 'inherit',
-    fontSize: '15px',
-    textAlign: 'left',
-    textDecoration: 'none',
-    cursor: 'pointer',
-  },
-  danger: {
-    color: auth.danger,
   },
   explain: {
     fontSize: '16px',

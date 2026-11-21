@@ -5,9 +5,12 @@ import { ROLE_LABELS } from '@/constants';
 import { toneOf } from '@/styles/tones';
 import { auth, breakpoints, cardLinkMarker } from '@/styles/tokens.stylex';
 import type { Place, PostFeedItem } from '@/types/post';
+import { useMarkNotInterested } from '@/hooks/usePost';
+import DropdownMenu from '@/components/DropdownMenu';
 import PersonHeader from '@/components/PersonHeader';
 import HomeIcon from '@/components/icons/HomeIcon';
 import MapPinIcon from '@/components/icons/MapPinIcon';
+import MoreIcon from '@/components/icons/MoreIcon';
 import {
   basedInLabel,
   countryName,
@@ -45,6 +48,15 @@ export default function PostCard({
   const [showAllCities, setShowAllCities] = useState(detail);
   const shown = showAllCities ? otherCities : otherCities.slice(0, MAX_CITIES);
   const hiddenCount = otherCities.length - shown.length;
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const markNotInterestedMutation = useMarkNotInterested();
+
+  // the menu stays open while it's saved, so a failure can show in it
+  const markNotInterested = () => {
+    markNotInterestedMutation.mutate(post.id, {
+      onSuccess: () => setOptionsOpen(false),
+    });
+  };
   // a traveler from home stands out, the city before the country. not a local: they live in the city being
   // explored, so the tag would only say that the viewer lives there too
   const author = post.authorBasedIn;
@@ -99,8 +111,13 @@ export default function PostCard({
         detail ? styles.detailCard : styles.listCard,
       )}
     >
-      <header {...stylex.props(styles.author)}>
-        <PersonHeader userId={post.authorId} name={post.authorName} large={detail}>
+      <header {...stylex.props(styles.author, !detail && styles.listAuthor)}>
+        <PersonHeader
+          userId={post.authorId}
+          name={post.authorName}
+          large={detail}
+          xstyle={styles.person}
+        >
           {/* "Traveler · ⌂ Based in Kyoto": the home icon and the accent say it's the viewer's home too */}
           {ROLE_LABELS[post.role]}
           {(fromHome || basedIn) && (
@@ -117,6 +134,33 @@ export default function PostCard({
             basedIn
           )}
         </PersonHeader>
+        {/* the card's corner, one dot above the other. the post's page has its own among its buttons */}
+        {!detail && (
+          <DropdownMenu
+            open={optionsOpen}
+            onOpenChange={(open) => {
+              // a failure from the last time doesn't show again
+              if (open) markNotInterestedMutation.reset();
+              setOptionsOpen(open);
+            }}
+            label="More options"
+            triggerStyle={styles.cardMore}
+            trigger={<MoreIcon size={20} vertical />}
+            items={[
+              {
+                label: 'Not interested',
+                onClick: markNotInterested,
+                disabled: markNotInterestedMutation.isPending,
+              },
+            ]}
+            error={
+              markNotInterestedMutation.isError
+                ? markNotInterestedMutation.error.message ||
+                  "Couldn't hide the post."
+                : null
+            }
+          />
+        )}
       </header>
 
       {detail ? (
@@ -207,6 +251,29 @@ const styles = stylex.create({
   // the author: on its own in a list card's column, beside the buttons on the post's page
   author: {
     minWidth: 0,
+  },
+  // a list card's author with the more button in the corner
+  listAuthor: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '8px',
+  },
+  person: {
+    flexGrow: 1,
+    minWidth: 0,
+  },
+  // above the title link's ::after like the city tags, so a tap on it never opens the post. pulled into the
+  // card's padding so the dots line up with the name
+  cardMore: {
+    position: 'relative',
+    zIndex: 1,
+    flexShrink: 0,
+    width: '36px',
+    height: '36px',
+    marginTop: '-6px',
+    marginRight: '-10px',
+    color: auth.muted,
+    outlineOffset: '2px',
   },
   dot: {
     color: auth.placeholder,
