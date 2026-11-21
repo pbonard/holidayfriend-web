@@ -4,6 +4,9 @@ const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
+  experimental: {
+    agentUpgrade: 'security',
+  },
   // the Dockerfile runs the small server this creates
   output: 'standalone',
   // the dev server only serves its scripts and hot reload to localhost, these are the other hosts a phone opens it
