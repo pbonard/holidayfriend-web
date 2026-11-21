@@ -23,6 +23,11 @@ export interface CreatePostRequest {
   body: string;
 }
 
+// what PUT /api/post takes: the post to change, and all of it again as the create form sends it
+export interface UpdatePostRequest extends CreatePostRequest {
+  id: string;
+}
+
 export interface AuthorBasedIn {
   country: string;
   // null when the author shows only their country
