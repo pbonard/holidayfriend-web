@@ -1,4 +1,5 @@
 import { axiosInstance } from '@/api/axios';
+import type { IdInterface } from '@/types/common';
 import type { InviteListItem, SendInviteRequest } from '@/types/invite';
 
 // the server's own words when it doesn't send one, e.g. "You're already chatting with this person"
@@ -21,10 +22,12 @@ export async function listInvites(before?: string): Promise<InviteListItem[]> {
 // the invite's message becomes the first message of a chat with its sender. one already answered, or sent again
 // since with a new id, is the error "Invite not found"
 export async function acceptInvite(id: string): Promise<void> {
-  await axiosInstance.post(`/api/invite/${id}/accept`);
+  const request: IdInterface = { id };
+  await axiosInstance.post('/api/invite/accept', request);
 }
 
 // it stays declined, so its sender can't send another for a while
 export async function declineInvite(id: string): Promise<void> {
-  await axiosInstance.post(`/api/invite/${id}/decline`);
+  const request: IdInterface = { id };
+  await axiosInstance.post('/api/invite/decline', request);
 }

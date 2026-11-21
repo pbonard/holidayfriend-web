@@ -1,4 +1,5 @@
 import { axiosInstance } from '@/api/axios';
+import type { IdInterface } from '@/types/common';
 import type {
   CreatePostRequest,
   Place,
@@ -9,7 +10,7 @@ import type {
 
 export async function createPost(
   request: CreatePostRequest,
-): Promise<{ id: string }> {
+): Promise<IdInterface> {
   const { data } = await axiosInstance.post('/api/post', request);
   return data;
 }
@@ -31,13 +32,21 @@ export async function listPosts(
 
 // a post with its whole body. a post that's gone is the error "Post not found"
 export async function getPostDetail(id: string): Promise<PostDetail> {
-  const { data } = await axiosInstance.get(`/api/post/${id}`);
+  const { data } = await axiosInstance.get('/api/post', { params: { id } });
   return data;
 }
 
 // hides a post from the viewer, from the more button of its card. marking it again is fine
 export async function markNotInterested(id: string): Promise<void> {
-  await axiosInstance.post(`/api/post/${id}/not-interested`);
+  const request: IdInterface = { id };
+  await axiosInstance.post('/api/post/not-interested', request);
+}
+
+// the ids of every post the viewer marked "Not interested". apart from the feed, so a city's feed is the same for
+// everyone
+export async function listNotInterestedPostIds(): Promise<string[]> {
+  const { data } = await axiosInstance.get('/api/post/not-interested');
+  return data;
 }
 
 // one page of a person's posts for their profile, newest first, the same size and paging as a city's
@@ -45,8 +54,8 @@ export async function listUserPosts(
   userId: string,
   before?: string,
 ): Promise<UserPostItem[]> {
-  const { data } = await axiosInstance.get(`/api/post/user/${userId}`, {
-    params: { before },
+  const { data } = await axiosInstance.get('/api/post/user', {
+    params: { userId, before },
   });
   return data;
 }
