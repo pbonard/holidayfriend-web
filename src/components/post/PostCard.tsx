@@ -8,10 +8,12 @@ import type { Place, PostFeedItem } from '@/types/post';
 import { useMarkNotInterested } from '@/hooks/usePost';
 import { useMyProfileBrief } from '@/hooks/useProfile';
 import DropdownMenu from '@/components/DropdownMenu';
+import DeletePostModal from '@/components/post/DeletePostModal';
 import PersonHeader from '@/components/PersonHeader';
 import HomeIcon from '@/components/icons/HomeIcon';
 import MapPinIcon from '@/components/icons/MapPinIcon';
 import MoreIcon from '@/components/icons/MoreIcon';
+import { editPostPath } from '@/utils';
 import {
   basedInLabel,
   countryName,
@@ -51,9 +53,12 @@ export default function PostCard({
   const hiddenCount = otherCities.length - shown.length;
   const [optionsOpen, setOptionsOpen] = useState(false);
   const markNotInterestedMutation = useMarkNotInterested();
-  // the viewer's own post can't be reported. waits for the viewer, so it never shows on their own post for a moment
+  // the viewer's own post is edited or deleted from here, someone else's hidden or reported. the feed waits for the
+  // viewer before it shows, so it's known by the time the menu opens
   const myProfile = useMyProfileBrief();
-  const canReport = !!myProfile.data && myProfile.data.id !== post.authorId;
+  const isMine = myProfile.data?.id === post.authorId;
+  // deleting asks first, in a modal over the feed
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   // the menu stays open while it's saved, so a failure can show in it
   const markNotInterested = () => {
@@ -150,19 +155,37 @@ export default function PostCard({
             label="More options"
             triggerStyle={styles.cardMore}
             trigger={<MoreIcon size={20} vertical />}
-            items={[
-              {
-                label: 'Not interested',
-                onClick: markNotInterested,
-                disabled: markNotInterestedMutation.isPending,
-              },
-              // nothing behind it yet
-              canReport && {
-                label: 'Report post',
-                danger: true,
-                onClick: () => setOptionsOpen(false),
-              },
-            ]}
+            items={
+              isMine
+                ? [
+                    {
+                      label: 'Edit post',
+                      href: editPostPath(post.id),
+                      onClick: () => setOptionsOpen(false),
+                    },
+                    {
+                      label: 'Delete post',
+                      danger: true,
+                      onClick: () => {
+                        setOptionsOpen(false);
+                        setConfirmingDelete(true);
+                      },
+                    },
+                  ]
+                : [
+                    {
+                      label: 'Not interested',
+                      onClick: markNotInterested,
+                      disabled: markNotInterestedMutation.isPending,
+                    },
+                    // nothing behind it yet
+                    {
+                      label: 'Report post',
+                      danger: true,
+                      onClick: () => setOptionsOpen(false),
+                    },
+                  ]
+            }
             error={
               markNotInterestedMutation.isError
                 ? markNotInterestedMutation.error.message ||
@@ -172,6 +195,15 @@ export default function PostCard({
           />
         )}
       </header>
+      {!detail && isMine && (
+        <DeletePostModal
+          open={confirmingDelete}
+          onClose={() => setConfirmingDelete(false)}
+          postId={post.id}
+          // the feeds on screen ask again once it's deleted, and the card leaves with it
+          onDeleted={() => setConfirmingDelete(false)}
+        />
+      )}
 
       {detail ? (
         <h1 {...stylex.props(styles.fullWidth, styles.detailTitle)}>

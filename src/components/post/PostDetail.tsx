@@ -14,10 +14,12 @@ import ErrorText from '@/components/ErrorText';
 import StatusText from '@/components/StatusText';
 import ChatIcon from '@/components/icons/ChatIcon';
 import MoreIcon from '@/components/icons/MoreIcon';
+import DeletePostModal from '@/components/post/DeletePostModal';
 import PostCard from '@/components/post/PostCard';
 import Modal from '@/components/Modal';
 import SayHiForm from '@/components/post/SayHiForm';
-import { placeFromPath } from '@/utils/citySearch';
+import { editPostPath } from '@/utils';
+import { explorePath, placeFromPath } from '@/utils/citySearch';
 
 // the server's 404 body, matched exactly as a missing route is a 404 too
 const POST_NOT_FOUND = 'Post not found';
@@ -43,6 +45,9 @@ export default function PostDetail() {
   // "Say hi" opens the message in a sheet over the page
   const [sayingHi, setSayingHi] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const isMine = !!myProfile.data && myProfile.data.id === post.data?.authorId;
+  // deleting asks first, in a modal over the page
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const notLoggedIn =
     post.error instanceof NotLoggedInError ||
@@ -78,11 +83,11 @@ export default function PostDetail() {
             myBasedIn={myBasedIn}
             detail
             actions={
-              <>
-                {/* the viewer's own post has nobody to say hi to and nothing to report, so neither button.
-                    waits for the viewer, so they never show on their own post for a moment */}
-                {myProfile.data && myProfile.data.id !== post.data.authorId && (
-                  <>
+              // waits for the viewer, so the buttons of someone else's post never show on their own for a moment
+              myProfile.data && (
+                <>
+                  {/* the viewer's own post has nobody to say hi to */}
+                  {!isMine && (
                     <Button
                       aria-haspopup="dialog"
                       onClick={() => setSayingHi(true)}
@@ -91,25 +96,52 @@ export default function PostDetail() {
                       <ChatIcon size={18} />
                       Say hi
                     </Button>
-                    <DropdownMenu
-                      open={moreOpen}
-                      onOpenChange={setMoreOpen}
-                      label="More options"
-                      triggerStyle={styles.more}
-                      trigger={<MoreIcon size={20} />}
-                      items={[
-                        // nothing behind it yet
-                        {
-                          label: 'Report post',
-                          danger: true,
-                          onClick: () => setMoreOpen(false),
-                        },
-                      ]}
-                    />
-                  </>
-                )}
-              </>
+                  )}
+                  <DropdownMenu
+                    open={moreOpen}
+                    onOpenChange={setMoreOpen}
+                    label="More options"
+                    triggerStyle={styles.more}
+                    trigger={<MoreIcon size={20} />}
+                    items={
+                      isMine
+                        ? [
+                            {
+                              label: 'Edit post',
+                              href: editPostPath(post.data.id),
+                              onClick: () => setMoreOpen(false),
+                            },
+                            {
+                              label: 'Delete post',
+                              danger: true,
+                              onClick: () => {
+                                setMoreOpen(false);
+                                setConfirmingDelete(true);
+                              },
+                            },
+                          ]
+                        : [
+                            // nothing behind it yet
+                            {
+                              label: 'Report post',
+                              danger: true,
+                              onClick: () => setMoreOpen(false),
+                            },
+                          ]
+                    }
+                  />
+                </>
+              )
             }
+          />
+
+          <DeletePostModal
+            open={confirmingDelete}
+            onClose={() => setConfirmingDelete(false)}
+            postId={post.data.id}
+            // back to the city it was opened from: the post's page has nothing left to show. replace, so back
+            // doesn't return to it
+            onDeleted={() => router.replace(explorePath(place))}
           />
 
           <Modal

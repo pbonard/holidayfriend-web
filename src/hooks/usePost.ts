@@ -9,12 +9,14 @@ import {
 import { queryKey } from '@/constants';
 import {
   createPost,
+  deletePost,
   getPostDetail,
   listNotInterestedPostIds,
   listPosts,
   listUserPosts,
   markNotInterested,
   POST_PAGE_SIZE,
+  updatePost,
 } from '@/api/post';
 import type { Place, PostFeedItem } from '@/types/post';
 
@@ -34,6 +36,35 @@ export function useCreatePost() {
     // (the client's staleTime) would show without it
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: [queryKey.POST] }),
+  });
+}
+
+// every place the post shows is under queryKey.POST: its page, its cities' feeds, its author's profile
+export function useUpdatePost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updatePost,
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: [queryKey.POST] }),
+  });
+}
+
+// everything about posts is marked stale, but only the city feeds on screen ask again now, so a card deleted from
+// the feed leaves it. the post's own page isn't asked for again: it's still on screen until the caller leaves it,
+// and would show the post gone for a moment. the rest ask again once they're shown
+export function useDeletePost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deletePost,
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: [queryKey.POST],
+        refetchType: 'none',
+      });
+      queryClient.invalidateQueries({
+        queryKey: [queryKey.POST, queryKey.GET_CITY_POSTS],
+      });
+    },
   });
 }
 

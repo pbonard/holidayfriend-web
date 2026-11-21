@@ -5,6 +5,7 @@ import type {
   Place,
   PostDetail,
   PostFeedItem,
+  UpdatePostRequest,
   UserPostItem,
 } from '@/types/post';
 
@@ -13,6 +14,16 @@ export async function createPost(
 ): Promise<IdInterface> {
   const { data } = await axiosInstance.post('/api/post', request);
   return data;
+}
+
+// the author's own post only, the error "You can only edit your own post" otherwise
+export async function updatePost(request: UpdatePostRequest): Promise<void> {
+  await axiosInstance.put('/api/post', request);
+}
+
+// for good, with its cities. the author's own post only
+export async function deletePost(id: string): Promise<void> {
+  await axiosInstance.delete('/api/post', { params: { id } });
 }
 
 // the server's page size: a page shorter than this is the last one

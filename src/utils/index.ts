@@ -12,6 +12,11 @@ export function profilePath(userId: string) {
   return `/profile/${userId}`;
 }
 
+// the form to edit one's own post, /post/edit?id={id}
+export function editPostPath(postId: string) {
+  return `/post/edit?id=${encodeURIComponent(postId)}`;
+}
+
 // the chat with a person, /chats/{id}: a personal chat's room is the other person
 export function chatPath(userId: string) {
   return `/chats/${userId}`;
