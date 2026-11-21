@@ -19,7 +19,7 @@ export interface ProfileFormValue {
   showBasedIn: ShowBasedIn;
 }
 
-// GET /api/profile/{id}: a person's profile page, as anyone sees it. an unanswered prompt is ''
+// GET /api/profile?id=: a person's profile page, as anyone sees it. an unanswered prompt is ''
 export interface Profile {
   id: string;
   name: string;

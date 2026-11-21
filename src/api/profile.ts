@@ -27,6 +27,8 @@ export async function getMyProfileBrief(): Promise<ProfileBrief> {
 
 // a person's profile page. one who has none (or never had) is the error PROFILE_NOT_FOUND
 export async function getProfile(id: string): Promise<Profile> {
-  const { data } = await axiosInstance.get(`/api/profile/${id}`);
+  const { data } = await axiosInstance.get('/api/profile', {
+    params: { id },
+  });
   return data;
 }
