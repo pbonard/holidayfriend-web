@@ -4,17 +4,21 @@ import { useEffect, useState } from 'react';
 import { notFound, useParams, useRouter } from 'next/navigation';
 import * as stylex from '@stylexjs/stylex';
 import { NotLoggedInError } from '@/api/axios';
-import { useGetPostDetail } from '@/hooks/usePost';
+import {
+  useDeletePost,
+  useGetPostDetail,
+  useReportPost,
+} from '@/hooks/usePost';
 import { useMyProfileBrief } from '@/hooks/useProfile';
 import { auth, breakpoints } from '@/styles/tokens.stylex';
 import type { Place } from '@/types/post';
 import Button from '@/components/Button';
+import ConfirmModal from '@/components/ConfirmModal';
 import DropdownMenu from '@/components/DropdownMenu';
 import ErrorText from '@/components/ErrorText';
 import StatusText from '@/components/StatusText';
 import ChatIcon from '@/components/icons/ChatIcon';
 import MoreIcon from '@/components/icons/MoreIcon';
-import DeletePostModal from '@/components/post/DeletePostModal';
 import PostCard from '@/components/post/PostCard';
 import Modal from '@/components/Modal';
 import SayHiForm from '@/components/post/SayHiForm';
@@ -46,8 +50,12 @@ export default function PostDetail() {
   const [sayingHi, setSayingHi] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const isMine = !!myProfile.data && myProfile.data.id === post.data?.authorId;
-  // deleting asks first, in a modal over the page
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // deleting and reporting ask first, in a modal over the page. one at a time, so one state says which
+  const [confirming, setConfirming] = useState<'delete' | 'report' | null>(
+    null,
+  );
+  const deletePostMutation = useDeletePost();
+  const reportPostMutation = useReportPost();
 
   const notLoggedIn =
     post.error instanceof NotLoggedInError ||
@@ -116,16 +124,18 @@ export default function PostDetail() {
                               danger: true,
                               onClick: () => {
                                 setMoreOpen(false);
-                                setConfirmingDelete(true);
+                                setConfirming('delete');
                               },
                             },
                           ]
                         : [
-                            // nothing behind it yet
                             {
                               label: 'Report post',
                               danger: true,
-                              onClick: () => setMoreOpen(false),
+                              onClick: () => {
+                                setMoreOpen(false);
+                                setConfirming('report');
+                              },
                             },
                           ]
                     }
@@ -135,13 +145,28 @@ export default function PostDetail() {
             }
           />
 
-          <DeletePostModal
-            open={confirmingDelete}
-            onClose={() => setConfirmingDelete(false)}
-            postId={post.data.id}
+          <ConfirmModal
+            open={confirming === 'delete'}
+            onClose={() => setConfirming(null)}
+            title="Delete this post?"
+            description="It's gone for good, from every city it's in. Invites you got from it stay."
+            confirmLabel="Delete"
+            fallbackError="Couldn't delete the post."
+            onConfirm={() => deletePostMutation.mutateAsync(post.data.id)}
             // back to the city it was opened from: the post's page has nothing left to show. replace, so back
             // doesn't return to it
-            onDeleted={() => router.replace(explorePath(place))}
+            onDone={() => router.replace(explorePath(place))}
+          />
+
+          <ConfirmModal
+            open={confirming === 'report'}
+            onClose={() => setConfirming(null)}
+            title="Report this post?"
+            description="We'll check it against our rules, like hate, harassment, scams or ads, and take it down if it breaks them. The author isn't told who reported it."
+            confirmLabel="Report"
+            fallbackError="Couldn't report the post."
+            doneMessage="Thanks for telling us. We'll check it against our rules and take it down if it breaks them."
+            onConfirm={() => reportPostMutation.mutateAsync(post.data.id)}
           />
 
           <Modal
