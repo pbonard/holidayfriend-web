@@ -6,6 +6,7 @@ import { toneOf } from '@/styles/tones';
 import { auth, breakpoints, cardLinkMarker } from '@/styles/tokens.stylex';
 import type { Place, PostFeedItem } from '@/types/post';
 import { useMarkNotInterested } from '@/hooks/usePost';
+import { useMyProfileBrief } from '@/hooks/useProfile';
 import DropdownMenu from '@/components/DropdownMenu';
 import PersonHeader from '@/components/PersonHeader';
 import HomeIcon from '@/components/icons/HomeIcon';
@@ -50,6 +51,9 @@ export default function PostCard({
   const hiddenCount = otherCities.length - shown.length;
   const [optionsOpen, setOptionsOpen] = useState(false);
   const markNotInterestedMutation = useMarkNotInterested();
+  // the viewer's own post can't be reported. waits for the viewer, so it never shows on their own post for a moment
+  const myProfile = useMyProfileBrief();
+  const canReport = !!myProfile.data && myProfile.data.id !== post.authorId;
 
   // the menu stays open while it's saved, so a failure can show in it
   const markNotInterested = () => {
@@ -151,6 +155,12 @@ export default function PostCard({
                 label: 'Not interested',
                 onClick: markNotInterested,
                 disabled: markNotInterestedMutation.isPending,
+              },
+              // nothing behind it yet
+              canReport && {
+                label: 'Report post',
+                danger: true,
+                onClick: () => setOptionsOpen(false),
               },
             ]}
             error={

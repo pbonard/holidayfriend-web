@@ -6,9 +6,10 @@ import * as stylex from '@stylexjs/stylex';
 import { NotLoggedInError } from '@/api/axios';
 import { useGetPostDetail } from '@/hooks/usePost';
 import { useMyProfileBrief } from '@/hooks/useProfile';
-import { breakpoints } from '@/styles/tokens.stylex';
+import { auth, breakpoints } from '@/styles/tokens.stylex';
 import type { Place } from '@/types/post';
 import Button from '@/components/Button';
+import DropdownMenu from '@/components/DropdownMenu';
 import ErrorText from '@/components/ErrorText';
 import StatusText from '@/components/StatusText';
 import ChatIcon from '@/components/icons/ChatIcon';
@@ -41,6 +42,7 @@ export default function PostDetail() {
     : null;
   // "Say hi" opens the message in a sheet over the page
   const [sayingHi, setSayingHi] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const notLoggedIn =
     post.error instanceof NotLoggedInError ||
@@ -77,27 +79,35 @@ export default function PostDetail() {
             detail
             actions={
               <>
-                {/* the viewer's own post has nobody to say hi to. waits for the viewer, so it never shows on
-                    their own post for a moment */}
+                {/* the viewer's own post has nobody to say hi to and nothing to report, so neither button.
+                    waits for the viewer, so they never show on their own post for a moment */}
                 {myProfile.data && myProfile.data.id !== post.data.authorId && (
-                  <Button
-                    aria-haspopup="dialog"
-                    onClick={() => setSayingHi(true)}
-                    xstyle={styles.sayHi}
-                  >
-                    <ChatIcon size={18} />
-                    Say hi
-                  </Button>
+                  <>
+                    <Button
+                      aria-haspopup="dialog"
+                      onClick={() => setSayingHi(true)}
+                      xstyle={styles.sayHi}
+                    >
+                      <ChatIcon size={18} />
+                      Say hi
+                    </Button>
+                    <DropdownMenu
+                      open={moreOpen}
+                      onOpenChange={setMoreOpen}
+                      label="More options"
+                      triggerStyle={styles.more}
+                      trigger={<MoreIcon size={20} />}
+                      items={[
+                        // nothing behind it yet
+                        {
+                          label: 'Report post',
+                          danger: true,
+                          onClick: () => setMoreOpen(false),
+                        },
+                      ]}
+                    />
+                  </>
                 )}
-                {/* nothing behind it yet */}
-                <Button
-                  variant="secondary"
-                  disabled
-                  aria-label="More options"
-                  xstyle={styles.more}
-                >
-                  <MoreIcon size={20} />
-                </Button>
               </>
             }
           />
@@ -133,14 +143,14 @@ const styles = stylex.create({
   },
   // Button's secondary look, round
   more: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
     flexShrink: 0,
     width: '44px',
     height: '44px',
-    padding: 0,
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: { default: auth.border, ':hover': auth.muted },
     borderRadius: '50%',
-    backgroundColor: 'transparent',
+    color: auth.text,
+    transition: 'background-color 120ms ease, border-color 120ms ease',
   },
 });
