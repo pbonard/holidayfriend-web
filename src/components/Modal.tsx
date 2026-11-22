@@ -67,6 +67,7 @@ export default function Modal({ open, onClose, title, children }: ModalProps) {
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = overflow;
+      dialog.close();
     };
   }, [shown]);
 
