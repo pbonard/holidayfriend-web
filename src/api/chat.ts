@@ -1,19 +1,11 @@
 import axios from 'axios';
 import { axiosInstance } from '@/api/axios';
 import type {
-  GetRoomsResponse,
   MessagingResponse,
   MediaType,
   PresignedUpload,
   SendMessageRequest,
 } from '@/types/chat';
-
-export async function getChatRooms(): Promise<GetRoomsResponse> {
-  const { data } = await axiosInstance.get<GetRoomsResponse>(
-    '/chat/messaging/rooms',
-  );
-  return data;
-}
 
 export async function getRecentMessages(
   cursor: string,
@@ -27,7 +19,6 @@ export async function getRecentMessages(
 
 export async function getRoomHistory(params: {
   roomId: string;
-  ahead?: string;
   cursor?: string;
 }): Promise<MessagingResponse[]> {
   const { data } = await axiosInstance.get<MessagingResponse[] | null>(

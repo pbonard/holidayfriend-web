@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAccessToken, NotLoggedInError } from '@/api/axios';
 import {
   checkBlock,
-  getChatRooms,
   getRecentMessages,
   openMessagingSocket,
   sendMessage,
@@ -38,7 +37,6 @@ import {
   removeRoom,
   putMessages,
   saveSentMessage,
-  startChats,
   subscribeChats,
   type Rooms,
 } from '@/db/message';
@@ -46,6 +44,7 @@ import {
 // waits before opening the socket again after it closed: doubling from the first, up to the last
 const RETRY_FIRST_MS = 1000;
 const RETRY_MAX_MS = 30 * 1000;
+const FIRST_CURSOR = '00000000-0000-7000-8000-000000000000';
 
 // the person logged in, whose chats these are. their profile's id is their user id. undefined until it's loaded
 export function useMyId() {
@@ -69,11 +68,11 @@ export function useChatConnection() {
     // a socket that closed without ever opening: the gateway may have turned its token away
     let staleToken = false;
 
-    const receive = (messages: MessagingResponse[]) => {
+    const receive = (messages: MessagingResponse[], read = false) => {
       // kept, then one's own among them no longer pending (db/pending): the message shows before its pending one goes
       const kept = (async () => {
         try {
-          await putMessages(user, messages, { moveCursor: true });
+          await putMessages(user, messages, { moveCursor: true, read });
         } finally {
           await settlePending(user, messages);
         }
@@ -94,16 +93,13 @@ export function useChatConnection() {
       return kept;
     };
 
-    const start = async () => {
-      await startChats(user, await getChatRooms());
-      return getCursor(user);
-    };
-
     const catchUp = async () => {
       try {
-        const cursor = (await getCursor(user)) ?? (await start());
-        if (cursor === null) return;
-        await receive(await getRecentMessages(cursor));
+        const cursor = await getCursor(user);
+        await receive(
+          await getRecentMessages(cursor ?? FIRST_CURSOR),
+          cursor === null,
+        );
       } catch {
       }
     };

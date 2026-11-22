@@ -1,10 +1,6 @@
-import { getRoomHistory } from '@/api/chat';
-import { query, transaction, type Sql } from '@/db/sqlite';
-import type {
-  GetRoomsResponse,
-  MessagingResponse,
-  RoomSummary,
-} from '@/types/chat';
+import { getRoomHistory } from "@/api/chat";
+import { query, transaction, type Sql } from "@/db/sqlite";
+import type { MessagingResponse, RoomSummary } from "@/types/chat";
 
 export type Rooms = Readonly<Record<string, RoomSummary>>;
 export type ChatRoomMessages = {
@@ -22,7 +18,7 @@ type MessageRow = {
 };
 type SummaryRow = MessageRow & { last_from_other_id: string; read_id: string };
 
-const CHANNEL_NAME = 'holidayfriend-chat';
+const CHANNEL_NAME = "holidayfriend-chat";
 const PAGE = 30;
 const NO_CHAT_ROOM_MESSAGES: ChatRoomMessagesMap = {};
 
@@ -45,49 +41,28 @@ function toMessage(row: MessageRow): MessagingResponse {
   };
 }
 
-const MESSAGE_COLUMNS = 'id, room_id, from_id, content_type, contents';
+const MESSAGE_COLUMNS = "id, room_id, from_id, content_type, contents";
 
 async function readMessagePage(
   user: string,
   roomId: string,
   limit: number,
   before?: string,
-  floor?: string,
 ) {
   const rows = await query<MessageRow>(
     `SELECT ${MESSAGE_COLUMNS} FROM message
-     WHERE user = ? AND room_id = ?${before === undefined ? '' : ' AND id < ?'}${floor === undefined ? '' : ' AND id >= ?'}
+     WHERE user = ? AND room_id = ?${before === undefined ? "" : " AND id < ?"}
      ORDER BY id DESC LIMIT ?`,
-    [
-      user,
-      roomId,
-      ...(before === undefined ? [] : [before]),
-      ...(floor === undefined ? [] : [floor]),
-      limit,
-    ],
+    [user, roomId, ...(before === undefined ? [] : [before]), limit],
   );
   return rows.map(toMessage);
-}
-
-async function readGap(
-  user: string,
-  roomId: string,
-  before?: string,
-): Promise<string | undefined> {
-  const [gap] = await query<{ cursor: string }>(
-    `SELECT cursor FROM gap
-     WHERE user = ? AND room_id = ?${before === undefined ? '' : ' AND cursor <= ?'}
-     ORDER BY cursor DESC LIMIT 1`,
-    before === undefined ? [user, roomId] : [user, roomId, before],
-  );
-  return gap?.cursor;
 }
 
 async function readSummaries(user: string, roomIds?: string[]) {
   const only =
     roomIds === undefined
-      ? ''
-      : ` AND room_id IN (${roomIds.map(() => '?').join(', ')})`;
+      ? ""
+      : ` AND room_id IN (${roomIds.map(() => "?").join(", ")})`;
   const rows = await query<SummaryRow>(
     `SELECT m.id, m.room_id, m.from_id, m.content_type, m.contents,
        COALESCE((SELECT MAX(o.id) FROM message o
@@ -124,7 +99,7 @@ function markRead(sql: Sql, user: string, roomId: string, id: string) {
 
 // one's own blocking or unblocking: a pill in the chat, not a message to select or delete, as on mobile
 export function isBlockEvent(message: MessagingResponse) {
-  return message.contentType === 'block' || message.contentType === 'unblock';
+  return message.contentType === "block" || message.contentType === "unblock";
 }
 
 // a kept message in a line, for the chat list: its text (a text's, or an accepted invite's), or what files it has
@@ -133,30 +108,30 @@ export function previewOf(message: MessagingResponse) {
   const contents = message.contents ?? [];
   const count = contents.length;
   switch (message.contentType) {
-    case 'image':
-      return count > 1 ? `${count} photos` : 'Photo';
-    case 'video':
-      return count > 1 ? `${count} videos` : 'Video';
-    case 'audio':
-      return 'Voice message';
-    case 'block':
-      return 'Blocked';
-    case 'unblock':
-      return 'Unblocked';
+    case "image":
+      return count > 1 ? `${count} photos` : "Photo";
+    case "video":
+      return count > 1 ? `${count} videos` : "Video";
+    case "audio":
+      return "Voice message";
+    case "block":
+      return "Blocked";
+    case "unblock":
+      return "Unblocked";
     default:
-      return contents[0] ?? '';
+      return contents[0] ?? "";
   }
 }
 
 // shown in the chat: messages, and one's own blocking and unblocking as a pill (chat hands those to their sender alone)
 const SHOWN = new Set([
-  'text',
-  'accept',
-  'image',
-  'video',
-  'audio',
-  'block',
-  'unblock',
+  "text",
+  "accept",
+  "image",
+  "video",
+  "audio",
+  "block",
+  "unblock",
 ]);
 
 // one's own message, kept as soon as chat answers with its id (db/pending), before it's relayed back. the cursor
@@ -172,33 +147,25 @@ export async function saveSentMessage(
 export async function putMessages(
   user: string,
   messages: MessagingResponse[],
-  { moveCursor }: { moveCursor: boolean },
+  { moveCursor, read = false }: { moveCursor: boolean; read?: boolean },
 ) {
   if (messages.length === 0) return;
   const changed = new Set<string>();
   await transaction(async (sql) => {
     for (const { roomId } of messages.filter(
-      ({ contentType }) => contentType === 'gap',
+      ({ contentType }) => contentType === "reset",
     )) {
-      const id = messages
-        .filter(
-          (message) =>
-            message.roomId === roomId &&
-            !['gap', 'quit', 'delete'].includes(message.contentType),
-        )
-        .reduce<
-          string | undefined
-        >((oldest, { id: each }) => (oldest === undefined || each < oldest ? each : oldest), undefined);
-      if (!id) continue;
-      await sql(
-        `INSERT OR REPLACE INTO gap (user, room_id, cursor) VALUES (?, ?, ?)`,
-        [user, roomId, id],
-      );
+      await sql(`DELETE FROM message WHERE user = ? AND room_id = ?`, [
+        user,
+        roomId,
+      ]);
+      historyDone.delete(roomId);
+      changed.add(roomId);
     }
     // oldest first, so a quit or delete meets what it removes
-    for (const received of [...messages].sort((a, b) =>
-      a.id < b.id ? -1 : 1,
-    )) {
+    for (const received of messages
+      .filter(({ contentType }) => contentType !== "reset")
+      .sort((a, b) => (a.id < b.id ? -1 : 1))) {
       // chat sends none as null (an empty list in its storage comes back as nothing), a block's or a quit's
       const message = { ...received, contents: received.contents ?? [] };
       const { roomId } = message;
@@ -217,25 +184,21 @@ export async function putMessages(
           ],
         );
         // one's own message, from this tab or another, is read
-        if (message.fromId === user) {
+        if (message.fromId === user || read) {
           await markRead(sql, user, roomId, message.id);
         }
         changed.add(roomId);
-      } else if (message.contentType === 'quit') {
+      } else if (message.contentType === "quit") {
         // left from another tab or device: what came before it goes, as on mobile. what's after is a new start
         await sql(
           `DELETE FROM message WHERE user = ? AND room_id = ? AND id <= ?`,
           [user, roomId, message.id],
         );
-        await sql(
-          `DELETE FROM gap WHERE user = ? AND room_id = ? AND cursor <= ?`,
-          [user, roomId, message.id],
-        );
         changed.add(roomId);
-      } else if (message.contentType === 'delete') {
+      } else if (message.contentType === "delete") {
         await sql(
           `DELETE FROM message WHERE user = ? AND room_id = ? AND id = ?`,
-          [user, roomId, message.contents[0] ?? ''],
+          [user, roomId, message.contents[0] ?? ""],
         );
         changed.add(roomId);
       }
@@ -244,12 +207,14 @@ export async function putMessages(
     if (moveCursor) {
       const newestId = messages.reduce(
         (max, { id }) => (id > max ? id : max),
-        '',
+        "",
       );
-      await sql(
-        `UPDATE meta SET value = MAX(value, ?) WHERE user = ? AND name = 'cursor'`,
-        [newestId, user],
-      );
+      if (newestId)
+        await sql(
+          `INSERT INTO meta (user, name, value) VALUES (?, 'cursor', ?)
+         ON CONFLICT (user, name) DO UPDATE SET value = MAX(value, excluded.value)`,
+          [user, newestId],
+        );
     }
   });
   await refresh(user, [...changed], true);
@@ -261,42 +226,6 @@ export async function getCursor(user: string): Promise<string | null> {
     [user],
   );
   return kept?.value ?? null;
-}
-
-export async function startChats(
-  user: string,
-  { cursor, messages: received }: GetRoomsResponse,
-) {
-  const newest = new Map<string, string>();
-  for (const { roomId, id } of received) {
-    if (id > (newest.get(roomId) ?? '')) newest.set(roomId, id);
-  }
-  await transaction(async (sql) => {
-    for (const message of received) {
-      if (!SHOWN.has(message.contentType)) continue;
-      await sql(
-        `INSERT OR IGNORE INTO message (user, id, room_id, from_id, content_type, contents)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [
-          user,
-          message.id,
-          message.roomId,
-          message.fromId,
-          message.contentType,
-          JSON.stringify(message.contents ?? []),
-        ],
-      );
-    }
-    for (const [roomId, id] of newest) {
-      await markRead(sql, user, roomId, id);
-    }
-    await sql(
-      `INSERT INTO meta (user, name, value) VALUES (?, 'cursor', ?)
-       ON CONFLICT (user, name) DO UPDATE SET value = MAX(value, excluded.value)`,
-      [user, cursor],
-    );
-  });
-  await refresh(user, [...newest.keys()], true);
 }
 
 // everything in the chat read, up to its newest message. shown at once, kept a moment later
@@ -321,7 +250,6 @@ export async function removeRoom(user: string, roomId: string) {
       user,
       roomId,
     ]);
-    await sql(`DELETE FROM gap WHERE user = ? AND room_id = ?`, [user, roomId]);
   });
   await refresh(user, [roomId], true);
 }
@@ -385,7 +313,7 @@ async function refresh(user: string, roomIds: string[], tellOthers: boolean) {
 }
 
 export function subscribeChats(listener: () => void) {
-  if (listeners.size === 0 && typeof BroadcastChannel !== 'undefined') {
+  if (listeners.size === 0 && typeof BroadcastChannel !== "undefined") {
     channel = new BroadcastChannel(CHANNEL_NAME);
     // another tab changed these chats: read again here, not told back
     channel.onmessage = (
@@ -406,12 +334,11 @@ export function subscribeChats(listener: () => void) {
 
 let oldDeleted = false;
 function deleteOldDatabase() {
-  if (oldDeleted || typeof indexedDB === 'undefined') return;
+  if (oldDeleted || typeof indexedDB === "undefined") return;
   oldDeleted = true;
   try {
     indexedDB.deleteDatabase(CHANNEL_NAME);
-  } catch {
-  }
+  } catch {}
 }
 
 // every chat's summary, null until they're read: read once per person, the first time they're asked for
@@ -448,83 +375,34 @@ async function readPage(
   roomId: string,
   before?: string,
 ): Promise<ChatRoomMessages> {
-  let cursor = await readGap(user, roomId, before);
-  let ahead: string | undefined;
-  if (cursor) {
-    [ahead] = (
-      await query<{ id: string | null }>(
-        `SELECT MAX(id) AS id FROM message WHERE user = ? AND room_id = ? AND id < ?`,
-        [user, roomId, cursor],
-      )
-    ).flatMap(({ id }) => (id ? [id] : []));
-    if (!ahead) {
-      await deleteGap(user, roomId, cursor);
-      cursor = undefined;
-    }
-  }
-  const read = () => readMessagePage(user, roomId, PAGE + 1, before, cursor);
+  const read = () => readMessagePage(user, roomId, PAGE + 1, before);
   let found = await read();
-  if (found.length <= PAGE) {
+  if (
+    found.length <= PAGE &&
+    !historyDone.has(roomId) &&
+    (before !== undefined || found.length === 0)
+  ) {
     let fetched: MessagingResponse[] | null = null;
     try {
-      if (cursor) {
-        fetched = await getRoomHistory({ roomId, ahead, cursor: cursor });
-      } else if (
-        !historyDone.has(roomId) &&
-        (before !== undefined || found.length === 0)
-      ) {
-        fetched = await getRoomHistory({
-          roomId,
-          cursor: found.at(-1)?.id ?? before,
-        });
-      }
+      fetched = await getRoomHistory({
+        roomId,
+        cursor: found.at(-1)?.id ?? before,
+      });
     } catch (error) {
-      if (found.length === 0 && !cursor) throw error;
+      if (found.length === 0) throw error;
     }
     if (user !== userId) return { messages: [], hasEarlier: false };
     if (fetched && fetched.length > 0) {
       await putMessages(user, fetched, { moveCursor: false });
-    }
-    if (fetched && cursor) {
-      cursor = await narrowGap(user, roomId, cursor, fetched);
-    } else if (fetched && fetched.length === 0) {
+      found = await read();
+    } else if (fetched) {
       historyDone.add(roomId);
     }
-    if (fetched) found = await read();
   }
   return {
     messages: found.slice(0, PAGE).reverse(),
-    hasEarlier:
-      found.length > PAGE || cursor !== undefined || !historyDone.has(roomId),
+    hasEarlier: found.length > PAGE || !historyDone.has(roomId),
   };
-}
-
-function deleteGap(user: string, roomId: string, cursor: string) {
-  return query(
-    `DELETE FROM gap WHERE user = ? AND room_id = ? AND cursor = ?`,
-    [user, roomId, cursor],
-  );
-}
-
-async function narrowGap(
-  user: string,
-  roomId: string,
-  gapCursor: string,
-  fetched: MessagingResponse[],
-): Promise<string | undefined> {
-  if (fetched.length === 0) {
-    await deleteGap(user, roomId, gapCursor);
-    return undefined;
-  }
-  const cursor = fetched.reduce(
-    (min, { id }) => (id < min ? id : min),
-    gapCursor,
-  );
-  await query(
-    `UPDATE gap SET cursor = ? WHERE user = ? AND room_id = ? AND cursor = ?`,
-    [cursor, user, roomId, gapCursor],
-  );
-  return cursor;
 }
 
 export async function openRoom(user: string, roomId: string) {
@@ -571,24 +449,22 @@ export async function clearChats() {
   try {
     await transaction(async (sql) => {
       for (const table of [
-        'message',
-        'room',
-        'meta',
-        'pending',
-        'pending_file',
-        'gap',
+        "message",
+        "room",
+        "meta",
+        "pending",
+        "pending_file",
       ]) {
         await sql(`DELETE FROM ${table}`);
       }
     });
-  } catch {
-  }
+  } catch {}
 }
 
 // this tab's id for my-server's chat, which keeps one socket per person and device: a tab of its own, so two tabs
 // don't take each other's place. sessionStorage is the tab's, and stays through a reload
 export function getDeviceId() {
-  const KEY = 'chatDeviceId';
+  const KEY = "chatDeviceId";
   try {
     const kept = sessionStorage.getItem(KEY);
     if (kept) return kept;
