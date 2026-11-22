@@ -17,9 +17,7 @@ export default function SettingsMenu() {
   const deleteAccountMutation = useDeleteAccount();
   const [open, setOpen] = useState(false);
   // what's asked before it's done
-  const [confirming, setConfirming] = useState<'logout' | 'delete' | null>(
-    null,
-  );
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // closes on a click outside it, or Esc
@@ -41,7 +39,10 @@ export default function SettingsMenu() {
 
   const logout = () => {
     logoutMutation.mutate(undefined, {
-      onSuccess: () => router.replace('/login'),
+      onSuccess: () => {
+        setOpen(false);
+        router.replace('/login');
+      },
     });
   };
 
@@ -77,22 +78,24 @@ export default function SettingsMenu() {
           <button
             type="button"
             role="menuitem"
-            onClick={() => {
-              setOpen(false);
-              logoutMutation.reset();
-              setConfirming('logout');
-            }}
+            disabled={logoutMutation.isPending}
+            onClick={logout}
             {...stylex.props(styles.item)}
           >
             Log out
           </button>
+          {logoutMutation.isError && (
+            <p role="alert" {...stylex.props(styles.menuError)}>
+              {logoutMutation.error.message || "Couldn't log out."}
+            </p>
+          )}
           <button
             type="button"
             role="menuitem"
             onClick={() => {
               setOpen(false);
               deleteAccountMutation.reset();
-              setConfirming('delete');
+              setConfirmingDelete(true);
             }}
             {...stylex.props(styles.item, styles.danger)}
           >
@@ -102,36 +105,8 @@ export default function SettingsMenu() {
       )}
 
       <Modal
-        open={confirming === 'logout'}
-        onClose={() => setConfirming(null)}
-        title="Log out?"
-      >
-        {logoutMutation.isError && (
-          <p role="alert" {...stylex.props(styles.error)}>
-            {logoutMutation.error.message || "Couldn't log out."}
-          </p>
-        )}
-        <div {...stylex.props(styles.actions)}>
-          <Button
-            variant="secondary"
-            onClick={() => setConfirming(null)}
-            xstyle={styles.action}
-          >
-            Cancel
-          </Button>
-          <Button
-            disabled={logoutMutation.isPending}
-            onClick={logout}
-            xstyle={styles.action}
-          >
-            Log out
-          </Button>
-        </div>
-      </Modal>
-
-      <Modal
-        open={confirming === 'delete'}
-        onClose={() => setConfirming(null)}
+        open={confirmingDelete}
+        onClose={() => setConfirmingDelete(false)}
         title="Delete your account?"
       >
         <p {...stylex.props(styles.explain)}>
@@ -147,7 +122,7 @@ export default function SettingsMenu() {
         <div {...stylex.props(styles.actions)}>
           <Button
             variant="secondary"
-            onClick={() => setConfirming(null)}
+            onClick={() => setConfirmingDelete(false)}
             xstyle={styles.action}
           >
             Cancel
@@ -257,6 +232,13 @@ const styles = stylex.create({
     cursor: 'pointer',
   },
   danger: {
+    color: auth.danger,
+  },
+  menuError: {
+    maxWidth: '180px',
+    paddingBlock: '4px',
+    paddingInline: '12px',
+    fontSize: '13px',
     color: auth.danger,
   },
   explain: {
