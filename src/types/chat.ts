@@ -8,11 +8,6 @@ export interface MessagingResponse {
   contents: string[];
 }
 
-export interface GetRoomsResponse {
-  cursor: string;
-  messages: MessagingResponse[];
-}
-
 // a photo, a video, or a voice message (mobile's "audio", one m4a). the folder its files are in, and the content type
 // of its message, whose contents are the files' names
 export type MediaType = 'image' | 'video' | 'audio';

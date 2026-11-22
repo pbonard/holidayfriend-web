@@ -13,12 +13,6 @@ const FILENAME = 'holidayfriend-chat.sqlite3';
 const WASM_URL = '/wa-sqlite/wa-sqlite.wasm';
 
 const SCHEMA = `
-  CREATE TABLE IF NOT EXISTS gap (
-    user TEXT NOT NULL,
-    room_id TEXT NOT NULL,
-    cursor TEXT NOT NULL,
-    PRIMARY KEY (user, room_id, cursor)
-  ) WITHOUT ROWID;
   CREATE TABLE IF NOT EXISTS message (
     user TEXT NOT NULL,
     id TEXT NOT NULL,
@@ -28,7 +22,7 @@ const SCHEMA = `
     contents TEXT NOT NULL,
     PRIMARY KEY (user, id)
   ) WITHOUT ROWID;
-  CREATE INDEX IF NOT EXISTS message_by_room ON message (user, room_id, id);
+  CREATE INDEX IF NOT EXISTS message_by_chat_room ON message (user, room_id, id);
   CREATE TABLE IF NOT EXISTS room (
     user TEXT NOT NULL,
     room_id TEXT NOT NULL,
@@ -90,7 +84,10 @@ async function run(sql: string, bind?: SqlValue[]) {
         Object.fromEntries(
           columns.map((column, index) => {
             const value = values[index];
-            return [column, value instanceof Uint8Array ? value.slice() : value];
+            return [
+              column,
+              value instanceof Uint8Array ? value.slice() : value,
+            ];
           }),
         ),
       );
