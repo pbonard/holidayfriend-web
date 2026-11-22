@@ -48,7 +48,6 @@ function ChatRoomItems({ openRoomId }: { openRoomId: string | null }) {
     () => null,
   );
 
-  // nothing while they're read from IndexedDB, a moment
   if (previews === null) {
     return null;
   }

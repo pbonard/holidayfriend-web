@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/copy-wa-sqlite.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/copy-wa-sqlite.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
@@ -16,7 +18,8 @@
     "next": "16.4.6",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "react-hook-form": "^7.91.0"
+    "react-hook-form": "^7.91.0",
+    "wa-sqlite": "github:rhashimoto/wa-sqlite#v1.2.0"
   },
   "devDependencies": {
     "@stylexjs/babel-plugin": "^0.19.1",

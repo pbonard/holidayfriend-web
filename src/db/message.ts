@@ -1,37 +1,29 @@
-import type { MessagingResponse, RoomSummary } from '@/types/chat';
-
-// the chats of this browser, in IndexedDB, as the mobile app keeps them in sqlite: my-server's chat hands each message
-// out once (GET /chat/messaging/recent from a cursor, or the socket), so what was received is only here. per person
-// logged in, every key starts with their id, so another account on the same browser starts with none of theirs.
-//   messages  [user, id]        a message as chat sent it, with its room. index room [user, roomId, id]: a chat's,
-//                                 oldest to newest
-//   rooms     [user, roomId]    a chat's summary: its newest message, the other person's newest, and what was read
-//   meta      [user, name]      the cursor, the newest message id received, where the next catching up starts
-//   pending   [user, key]       one's own messages not sent yet (db/pending)
-// in memory, for the screens (useSyncExternalStore in hooks/useChat): every chat's summary, for the list and the
-// badge, and the open chats' latest messages, a page at a time. replaced, never changed in place, so react sees a
-// change. other tabs write it too: a BroadcastChannel tells them which chats changed, and they read those again
+import { getRoomHistory } from '@/api/chat';
+import { query, transaction, type Sql } from '@/db/sqlite';
+import type {
+  GetRoomsResponse,
+  MessagingResponse,
+  RoomSummary,
+} from '@/types/chat';
 
 export type Rooms = Readonly<Record<string, RoomSummary>>;
-// a chat's latest messages in memory, oldest first, and whether older ones are kept too
 export type ChatRoomMessages = {
   messages: MessagingResponse[];
   hasEarlier: boolean;
 };
 export type ChatRoomMessagesMap = Readonly<Record<string, ChatRoomMessages>>;
 
-type MessageEntity = MessagingResponse & { user: string };
-type RoomRecord = RoomSummary & { user: string; roomId: string };
-type MetaRecord = { user: string; name: string; value: string };
+type MessageRow = {
+  id: string;
+  room_id: string;
+  from_id: string;
+  content_type: string;
+  contents: string;
+};
+type SummaryRow = MessageRow & { last_from_other_id: string; read_id: string };
 
-const DB_NAME = 'holidayfriend-chat';
-const DB_VERSION = 1;
-// how many of a chat's latest messages are read at first, and how many more each "Show earlier messages" adds
-const PAGE = 100;
-// the cursor before anything was received: the smallest v7 id
-const FIRST_CURSOR = '00000000-0000-7000-8000-000000000000';
-// past any uuid in a key range
-const HIGHEST = '￿';
+const CHANNEL_NAME = 'holidayfriend-chat';
+const PAGE = 30;
 const NO_CHAT_ROOM_MESSAGES: ChatRoomMessagesMap = {};
 
 let userId: string | null = null;
@@ -41,112 +33,91 @@ let loading: Promise<void> | null = null;
 let chatRoomMessagesMap: ChatRoomMessagesMap = NO_CHAT_ROOM_MESSAGES;
 const listeners = new Set<() => void>();
 let channel: BroadcastChannel | null = null;
-let dbPromise: Promise<IDBDatabase> | null = null;
+const historyDone = new Set<string>();
 
-// --- IndexedDB, with promises ---
-
-// the chats' database, db/pending's store too
-export function openDB() {
-  dbPromise ??= new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      const messages = db.createObjectStore('messages', {
-        keyPath: ['user', 'id'],
-      });
-      messages.createIndex('room', ['user', 'roomId', 'id']);
-      db.createObjectStore('rooms', { keyPath: ['user', 'roomId'] });
-      db.createObjectStore('meta', { keyPath: ['user', 'name'] });
-      db.createObjectStore('pending', { keyPath: ['user', 'key'] });
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-  return dbPromise;
+function toMessage(row: MessageRow): MessagingResponse {
+  return {
+    id: row.id,
+    roomId: row.room_id,
+    fromId: row.from_id,
+    contentType: row.content_type,
+    contents: JSON.parse(row.contents) as string[],
+  };
 }
 
-export function promised<T>(request: IDBRequest<T>) {
-  return new Promise<T>((resolve, reject) => {
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
+const MESSAGE_COLUMNS = 'id, room_id, from_id, content_type, contents';
 
-export function done(tx: IDBTransaction) {
-  return new Promise<void>((resolve, reject) => {
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-    tx.onabort = () => reject(tx.error);
-  });
-}
-
-// a chat's messages up to limit, newest first, older than before when it's given
-function getRecentMessagePage(
-  index: IDBIndex,
+async function readMessagePage(
   user: string,
   roomId: string,
   limit: number,
   before?: string,
+  floor?: string,
 ) {
-  const range = IDBKeyRange.bound(
-    [user, roomId, ''],
-    [user, roomId, before ?? HIGHEST],
-    false,
-    before !== undefined,
+  const rows = await query<MessageRow>(
+    `SELECT ${MESSAGE_COLUMNS} FROM message
+     WHERE user = ? AND room_id = ?${before === undefined ? '' : ' AND id < ?'}${floor === undefined ? '' : ' AND id >= ?'}
+     ORDER BY id DESC LIMIT ?`,
+    [
+      user,
+      roomId,
+      ...(before === undefined ? [] : [before]),
+      ...(floor === undefined ? [] : [floor]),
+      limit,
+    ],
   );
-  return new Promise<MessageEntity[]>((resolve, reject) => {
-    const found: MessageEntity[] = [];
-    const request = index.openCursor(range, 'prev');
-    request.onsuccess = () => {
-      const cursor = request.result;
-      if (!cursor || found.length >= limit) {
-        resolve(found);
-        return;
-      }
-      found.push(cursor.value as MessageEntity);
-      cursor.continue();
-    };
-    request.onerror = () => reject(request.error);
-  });
+  return rows.map(toMessage);
 }
 
-// a chat's summary from its messages, after some were removed. null when none are left
-async function sumarizeMessage(
-  index: IDBIndex,
+async function readGap(
   user: string,
   roomId: string,
-  readId: string,
-): Promise<RoomRecord | null> {
-  const [lastMessage] = await getRecentMessagePage(index, user, roomId, 1);
-  if (!lastMessage) return null;
-  let lastFromOtherId = '';
-  if (lastMessage.fromId !== user) {
-    lastFromOtherId = lastMessage.id;
-  } else {
-    // the other person's newest: back from the newest, past one's own
-    const range = IDBKeyRange.bound(
-      [user, roomId, ''],
-      [user, roomId, HIGHEST],
-    );
-    lastFromOtherId = await new Promise<string>((resolve, reject) => {
-      const request = index.openCursor(range, 'prev');
-      request.onsuccess = () => {
-        const cursor = request.result;
-        if (!cursor) return resolve('');
-        const record = cursor.value as MessageEntity;
-        if (record.fromId !== user) return resolve(record.id);
-        cursor.continue();
-      };
-      request.onerror = () => reject(request.error);
-    });
-  }
-  return {
-    user,
-    roomId,
-    last: lastMessage,
-    lastFromOtherId,
-    readId,
-  };
+  before?: string,
+): Promise<string | undefined> {
+  const [gap] = await query<{ cursor: string }>(
+    `SELECT cursor FROM gap
+     WHERE user = ? AND room_id = ?${before === undefined ? '' : ' AND cursor <= ?'}
+     ORDER BY cursor DESC LIMIT 1`,
+    before === undefined ? [user, roomId] : [user, roomId, before],
+  );
+  return gap?.cursor;
+}
+
+async function readSummaries(user: string, roomIds?: string[]) {
+  const only =
+    roomIds === undefined
+      ? ''
+      : ` AND room_id IN (${roomIds.map(() => '?').join(', ')})`;
+  const rows = await query<SummaryRow>(
+    `SELECT m.id, m.room_id, m.from_id, m.content_type, m.contents,
+       COALESCE((SELECT MAX(o.id) FROM message o
+                 WHERE o.user = m.user AND o.room_id = m.room_id AND o.from_id != m.user), '') AS last_from_other_id,
+       COALESCE(r.read_id, '') AS read_id
+     FROM message m
+     JOIN (SELECT room_id, MAX(id) AS id FROM message WHERE user = ?${only} GROUP BY room_id) newest
+       ON newest.room_id = m.room_id AND newest.id = m.id
+     LEFT JOIN room r ON r.user = m.user AND r.room_id = m.room_id
+     WHERE m.user = ?`,
+    [user, ...(roomIds ?? []), user],
+  );
+  return Object.fromEntries(
+    rows.map((row) => [
+      row.room_id,
+      {
+        last: toMessage(row),
+        lastFromOtherId: row.last_from_other_id,
+        readId: row.read_id,
+      } satisfies RoomSummary,
+    ]),
+  );
+}
+
+function markRead(sql: Sql, user: string, roomId: string, id: string) {
+  return sql(
+    `INSERT INTO room (user, room_id, read_id) VALUES (?, ?, ?)
+     ON CONFLICT (user, room_id) DO UPDATE SET read_id = MAX(read_id, excluded.read_id)`,
+    [user, roomId, id],
+  );
 }
 
 // --- what's kept ---
@@ -198,155 +169,160 @@ export async function saveSentMessage(
   await putMessages(user, [message], { moveCursor: false });
 }
 
-// messages kept, each in its room, in one transaction. moveCursor: chat relayed them (on the socket, or catching
-// up), so the cursor moves past them: they come in chat's order, nothing before them is still to come. not for
-// one's own just answered (saveSentMessage)
 export async function putMessages(
   user: string,
   messages: MessagingResponse[],
   { moveCursor }: { moveCursor: boolean },
 ) {
   if (messages.length === 0) return;
-  const db = await openDB();
-  const tx = db.transaction(['messages', 'rooms', 'meta'], 'readwrite');
-  const messageStore = tx.objectStore('messages');
-  const roomStore = tx.objectStore('rooms');
-  const index = messageStore.index('room');
   const changed = new Set<string>();
-
-  // oldest first, so a quit or delete meets what it removes
-  for (const received of [...messages].sort((a, b) => (a.id < b.id ? -1 : 1))) {
-    // chat sends none as null (an empty list in its storage comes back as nothing), a block's or a quit's
-    const message = { ...received, contents: received.contents ?? [] };
-    const { roomId } = message;
-    const room = (await promised(roomStore.get([user, roomId]))) as
-      | RoomRecord
-      | undefined;
-
-    if (SHOWN.has(message.contentType)) {
-      // once, whether it came on the socket, from catching up, or both
-      if (await promised(messageStore.getKey([user, message.id]))) continue;
-      messageStore.put({ ...message, user } satisfies MessageEntity);
-      // one's own message, from this tab or another, is read
-      const readId =
-        message.fromId === user && message.id > (room?.readId ?? '')
-          ? message.id
-          : (room?.readId ?? '');
-      roomStore.put({
-        user,
-        roomId,
-        last: !room || message.id > room.last.id ? message : room.last,
-        lastFromOtherId:
-          message.fromId !== user && message.id > (room?.lastFromOtherId ?? '')
-            ? message.id
-            : (room?.lastFromOtherId ?? ''),
-        readId,
-      } satisfies RoomRecord);
-      changed.add(roomId);
-      continue;
-    }
-
-    if (!room) continue;
-    if (message.contentType === 'quit') {
-      // left from another tab or device: what came before it goes, as on mobile. what's after is a new start
-      const range = IDBKeyRange.bound(
-        [user, roomId, ''],
-        [user, roomId, HIGHEST],
+  await transaction(async (sql) => {
+    for (const { roomId } of messages.filter(
+      ({ contentType }) => contentType === 'gap',
+    )) {
+      const id = messages
+        .filter(
+          (message) =>
+            message.roomId === roomId &&
+            !['gap', 'quit', 'delete'].includes(message.contentType),
+        )
+        .reduce<
+          string | undefined
+        >((oldest, { id: each }) => (oldest === undefined || each < oldest ? each : oldest), undefined);
+      if (!id) continue;
+      await sql(
+        `INSERT OR REPLACE INTO gap (user, room_id, cursor) VALUES (?, ?, ?)`,
+        [user, roomId, id],
       );
-      await new Promise<void>((resolve, reject) => {
-        const request = index.openCursor(range);
-        request.onsuccess = () => {
-          const cursor = request.result;
-          if (!cursor) return resolve();
-          if ((cursor.value as MessageEntity).id <= message.id) cursor.delete();
-          cursor.continue();
-        };
-        request.onerror = () => reject(request.error);
-      });
-    } else if (message.contentType === 'delete') {
-      const key = [user, message.contents[0]];
-      const deleted = (await promised(messageStore.get(key))) as
-        | MessageEntity
-        | undefined;
-      if (!deleted || deleted.roomId !== roomId) continue;
-      messageStore.delete(key);
-    } else {
+    }
+    // oldest first, so a quit or delete meets what it removes
+    for (const received of [...messages].sort((a, b) =>
+      a.id < b.id ? -1 : 1,
+    )) {
+      // chat sends none as null (an empty list in its storage comes back as nothing), a block's or a quit's
+      const message = { ...received, contents: received.contents ?? [] };
+      const { roomId } = message;
+      if (SHOWN.has(message.contentType)) {
+        // once, whether it came on the socket, from catching up, or both
+        await sql(
+          `INSERT OR IGNORE INTO message (user, id, room_id, from_id, content_type, contents)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            user,
+            message.id,
+            roomId,
+            message.fromId,
+            message.contentType,
+            JSON.stringify(message.contents),
+          ],
+        );
+        // one's own message, from this tab or another, is read
+        if (message.fromId === user) {
+          await markRead(sql, user, roomId, message.id);
+        }
+        changed.add(roomId);
+      } else if (message.contentType === 'quit') {
+        // left from another tab or device: what came before it goes, as on mobile. what's after is a new start
+        await sql(
+          `DELETE FROM message WHERE user = ? AND room_id = ? AND id <= ?`,
+          [user, roomId, message.id],
+        );
+        await sql(
+          `DELETE FROM gap WHERE user = ? AND room_id = ? AND cursor <= ?`,
+          [user, roomId, message.id],
+        );
+        changed.add(roomId);
+      } else if (message.contentType === 'delete') {
+        await sql(
+          `DELETE FROM message WHERE user = ? AND room_id = ? AND id = ?`,
+          [user, roomId, message.contents[0] ?? ''],
+        );
+        changed.add(roomId);
+      }
       // the rest (a group's create and participate): the web app has no groups
-      continue;
     }
-    const summary = await sumarizeMessage(index, user, roomId, room.readId);
-    if (summary) {
-      roomStore.put(summary);
-    } else {
-      roomStore.delete([user, roomId]);
+    if (moveCursor) {
+      const newestId = messages.reduce(
+        (max, { id }) => (id > max ? id : max),
+        '',
+      );
+      await sql(
+        `UPDATE meta SET value = MAX(value, ?) WHERE user = ? AND name = 'cursor'`,
+        [newestId, user],
+      );
     }
-    changed.add(roomId);
-  }
-
-  if (moveCursor) {
-    const metaStore = tx.objectStore('meta');
-    const kept = (await promised(metaStore.get([user, 'cursor']))) as
-      | MetaRecord
-      | undefined;
-    const newestId = messages.reduce(
-      (max, { id }) => (id > max ? id : max),
-      kept?.value ?? FIRST_CURSOR,
-    );
-    metaStore.put({
-      user,
-      name: 'cursor',
-      value: newestId,
-    } satisfies MetaRecord);
-  }
-  await done(tx);
+  });
   await refresh(user, [...changed], true);
 }
 
-export async function getCursor(user: string) {
-  const db = await openDB();
-  const kept = (await promised(
-    db.transaction('meta').objectStore('meta').get([user, 'cursor']),
-  )) as MetaRecord | undefined;
-  return kept?.value ?? FIRST_CURSOR;
+export async function getCursor(user: string): Promise<string | null> {
+  const [kept] = await query<{ value: string }>(
+    `SELECT value FROM meta WHERE user = ? AND name = 'cursor'`,
+    [user],
+  );
+  return kept?.value ?? null;
+}
+
+export async function startChats(
+  user: string,
+  { cursor, messages: received }: GetRoomsResponse,
+) {
+  const newest = new Map<string, string>();
+  for (const { roomId, id } of received) {
+    if (id > (newest.get(roomId) ?? '')) newest.set(roomId, id);
+  }
+  await transaction(async (sql) => {
+    for (const message of received) {
+      if (!SHOWN.has(message.contentType)) continue;
+      await sql(
+        `INSERT OR IGNORE INTO message (user, id, room_id, from_id, content_type, contents)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          user,
+          message.id,
+          message.roomId,
+          message.fromId,
+          message.contentType,
+          JSON.stringify(message.contents ?? []),
+        ],
+      );
+    }
+    for (const [roomId, id] of newest) {
+      await markRead(sql, user, roomId, id);
+    }
+    await sql(
+      `INSERT INTO meta (user, name, value) VALUES (?, 'cursor', ?)
+       ON CONFLICT (user, name) DO UPDATE SET value = MAX(value, excluded.value)`,
+      [user, cursor],
+    );
+  });
+  await refresh(user, [...newest.keys()], true);
 }
 
 // everything in the chat read, up to its newest message. shown at once, kept a moment later
 export async function markRoomRead(user: string, roomId: string) {
   const summary = rooms?.[roomId];
   if (user !== userId || !summary || summary.readId >= summary.last.id) return;
-  rooms = { ...rooms, [roomId]: { ...summary, readId: summary.last.id } };
+  const lastId = summary.last.id;
+  rooms = { ...rooms, [roomId]: { ...summary, readId: lastId } };
   notify();
-
-  const db = await openDB();
-  const tx = db.transaction('rooms', 'readwrite');
-  const roomStore = tx.objectStore('rooms');
-  const room = (await promised(roomStore.get([user, roomId]))) as
-    | RoomRecord
-    | undefined;
-  if (room && room.readId < room.last.id) {
-    roomStore.put({ ...room, readId: room.last.id });
-  }
-  await done(tx);
+  await transaction((sql) => markRead(sql, user, roomId, lastId));
   broadcast(user, [roomId]);
 }
 
 // left: none of it kept
 export async function removeRoom(user: string, roomId: string) {
-  const db = await openDB();
-  const tx = db.transaction(['messages', 'rooms'], 'readwrite');
-  const range = IDBKeyRange.bound([user, roomId, ''], [user, roomId, HIGHEST]);
-  await new Promise<void>((resolve, reject) => {
-    const request = tx.objectStore('messages').index('room').openCursor(range);
-    request.onsuccess = () => {
-      const cursor = request.result;
-      if (!cursor) return resolve();
-      cursor.delete();
-      cursor.continue();
-    };
-    request.onerror = () => reject(request.error);
+  await transaction(async (sql) => {
+    await sql(`DELETE FROM message WHERE user = ? AND room_id = ?`, [
+      user,
+      roomId,
+    ]);
+    await sql(`DELETE FROM room WHERE user = ? AND room_id = ?`, [
+      user,
+      roomId,
+    ]);
+    await sql(`DELETE FROM gap WHERE user = ? AND room_id = ?`, [user, roomId]);
   });
-  tx.objectStore('rooms').delete([user, roomId]);
-  await done(tx);
   await refresh(user, [roomId], true);
 }
 
@@ -366,56 +342,43 @@ async function refresh(user: string, roomIds: string[], tellOthers: boolean) {
   if (tellOthers) broadcast(user, roomIds);
   if (user !== userId) return;
   await loading;
-  const db = await openDB();
-  const tx = db.transaction(['messages', 'rooms']);
-  const roomStore = tx.objectStore('rooms');
-  const index = tx.objectStore('messages').index('room');
-  const nextRooms = { ...rooms };
+  const summaries = await readSummaries(user, roomIds);
   const nextChatRoomMessagesMap = { ...chatRoomMessagesMap };
   await Promise.all(
     roomIds.map(async (roomId) => {
-      const room = (await promised(roomStore.get([user, roomId]))) as
-        | RoomRecord
-        | undefined;
-      if (room) {
-        nextRooms[roomId] = {
-          last: room.last,
-          lastFromOtherId: room.lastFromOtherId,
-          readId: room.readId,
-        };
-      } else {
-        delete nextRooms[roomId];
-      }
       const chatRoomMessages = chatRoomMessagesMap[roomId];
       const firstMessageId = chatRoomMessages?.messages[0]?.id;
       if (firstMessageId) {
         // everything from the earliest shown on: what was shown stays, new ones come after it
         const [found, older] = await Promise.all([
-          promised(
-            index.getAll(
-              IDBKeyRange.bound(
-                [user, roomId, firstMessageId],
-                [user, roomId, HIGHEST],
-              ),
-            ),
-          ) as Promise<MessageEntity[]>,
-          getRecentMessagePage(index, user, roomId, 1, firstMessageId),
+          query<MessageRow>(
+            `SELECT ${MESSAGE_COLUMNS} FROM message
+             WHERE user = ? AND room_id = ? AND id >= ? ORDER BY id ASC`,
+            [user, roomId, firstMessageId],
+          ),
+          readMessagePage(user, roomId, 1, firstMessageId),
         ]);
         nextChatRoomMessagesMap[roomId] = {
-          messages: found,
-          hasEarlier: older.length > 0,
+          messages: found.map(toMessage),
+          hasEarlier: older.length > 0 || !historyDone.has(roomId),
         };
       } else if (chatRoomMessages) {
         // none shown yet (a chat that was empty): its latest page
-        const found = await getRecentMessagePage(index, user, roomId, PAGE + 1);
+        const found = await readMessagePage(user, roomId, PAGE + 1);
         nextChatRoomMessagesMap[roomId] = {
           messages: found.slice(0, PAGE).reverse(),
-          hasEarlier: found.length > PAGE,
+          hasEarlier: found.length > PAGE || !historyDone.has(roomId),
         };
       }
     }),
   );
   if (user !== userId) return;
+  const nextRooms: Record<string, RoomSummary> = { ...rooms };
+  for (const roomId of roomIds) {
+    const summary = summaries[roomId];
+    if (summary) nextRooms[roomId] = summary;
+    else delete nextRooms[roomId];
+  }
   rooms = nextRooms;
   chatRoomMessagesMap = nextChatRoomMessagesMap;
   notify();
@@ -423,7 +386,7 @@ async function refresh(user: string, roomIds: string[], tellOthers: boolean) {
 
 export function subscribeChats(listener: () => void) {
   if (listeners.size === 0 && typeof BroadcastChannel !== 'undefined') {
-    channel = new BroadcastChannel(DB_NAME);
+    channel = new BroadcastChannel(CHANNEL_NAME);
     // another tab changed these chats: read again here, not told back
     channel.onmessage = (
       event: MessageEvent<{ user: string; roomIds: string[] }>,
@@ -441,28 +404,30 @@ export function subscribeChats(listener: () => void) {
   };
 }
 
+let oldDeleted = false;
+function deleteOldDatabase() {
+  if (oldDeleted || typeof indexedDB === 'undefined') return;
+  oldDeleted = true;
+  try {
+    indexedDB.deleteDatabase(CHANNEL_NAME);
+  } catch {
+  }
+}
+
 // every chat's summary, null until they're read: read once per person, the first time they're asked for
 export function getRooms(user: string): Rooms | null {
   if (userId === user) return rooms;
   userId = user;
   rooms = null;
   chatRoomMessagesMap = NO_CHAT_ROOM_MESSAGES;
+  historyDone.clear();
+  deleteOldDatabase();
   loading = (async () => {
     try {
-      const db = await openDB();
-      const range = IDBKeyRange.bound([user, ''], [user, HIGHEST]);
-      const records = (await promised(
-        db.transaction('rooms').objectStore('rooms').getAll(range),
-      )) as RoomRecord[];
+      const summaries = await readSummaries(user);
       if (userId !== user) return;
-      rooms = Object.fromEntries(
-        records.map(({ roomId, last, lastFromOtherId, readId }) => [
-          roomId,
-          { last, lastFromOtherId, readId },
-        ]),
-      );
+      rooms = summaries;
     } catch {
-      // IndexedDB unavailable: no chats kept, as if there were none
       if (userId === user) rooms = {};
     }
     notify();
@@ -478,25 +443,102 @@ export function getServerChatRoomMessagesMap(): ChatRoomMessagesMap {
   return NO_CHAT_ROOM_MESSAGES;
 }
 
-// a chat opened: its latest PAGE messages into memory, once
+async function readPage(
+  user: string,
+  roomId: string,
+  before?: string,
+): Promise<ChatRoomMessages> {
+  let cursor = await readGap(user, roomId, before);
+  let ahead: string | undefined;
+  if (cursor) {
+    [ahead] = (
+      await query<{ id: string | null }>(
+        `SELECT MAX(id) AS id FROM message WHERE user = ? AND room_id = ? AND id < ?`,
+        [user, roomId, cursor],
+      )
+    ).flatMap(({ id }) => (id ? [id] : []));
+    if (!ahead) {
+      await deleteGap(user, roomId, cursor);
+      cursor = undefined;
+    }
+  }
+  const read = () => readMessagePage(user, roomId, PAGE + 1, before, cursor);
+  let found = await read();
+  if (found.length <= PAGE) {
+    let fetched: MessagingResponse[] | null = null;
+    try {
+      if (cursor) {
+        fetched = await getRoomHistory({ roomId, ahead, cursor: cursor });
+      } else if (
+        !historyDone.has(roomId) &&
+        (before !== undefined || found.length === 0)
+      ) {
+        fetched = await getRoomHistory({
+          roomId,
+          cursor: found.at(-1)?.id ?? before,
+        });
+      }
+    } catch (error) {
+      if (found.length === 0 && !cursor) throw error;
+    }
+    if (user !== userId) return { messages: [], hasEarlier: false };
+    if (fetched && fetched.length > 0) {
+      await putMessages(user, fetched, { moveCursor: false });
+    }
+    if (fetched && cursor) {
+      cursor = await narrowGap(user, roomId, cursor, fetched);
+    } else if (fetched && fetched.length === 0) {
+      historyDone.add(roomId);
+    }
+    if (fetched) found = await read();
+  }
+  return {
+    messages: found.slice(0, PAGE).reverse(),
+    hasEarlier:
+      found.length > PAGE || cursor !== undefined || !historyDone.has(roomId),
+  };
+}
+
+function deleteGap(user: string, roomId: string, cursor: string) {
+  return query(
+    `DELETE FROM gap WHERE user = ? AND room_id = ? AND cursor = ?`,
+    [user, roomId, cursor],
+  );
+}
+
+async function narrowGap(
+  user: string,
+  roomId: string,
+  gapCursor: string,
+  fetched: MessagingResponse[],
+): Promise<string | undefined> {
+  if (fetched.length === 0) {
+    await deleteGap(user, roomId, gapCursor);
+    return undefined;
+  }
+  const cursor = fetched.reduce(
+    (min, { id }) => (id < min ? id : min),
+    gapCursor,
+  );
+  await query(
+    `UPDATE gap SET cursor = ? WHERE user = ? AND room_id = ? AND cursor = ?`,
+    [cursor, user, roomId, gapCursor],
+  );
+  return cursor;
+}
+
 export async function openRoom(user: string, roomId: string) {
   // the person's chats read, if they aren't yet
   getRooms(user);
   if (chatRoomMessagesMap[roomId]) return;
-  const db = await openDB();
-  const index = db
-    .transaction('messages')
-    .objectStore('messages')
-    .index('room');
-  const found = await getRecentMessagePage(index, user, roomId, PAGE + 1);
+  let page: ChatRoomMessages;
+  try {
+    page = await readPage(user, roomId);
+  } catch {
+    page = { messages: [], hasEarlier: true };
+  }
   if (user !== userId || chatRoomMessagesMap[roomId]) return;
-  chatRoomMessagesMap = {
-    ...chatRoomMessagesMap,
-    [roomId]: {
-      messages: found.slice(0, PAGE).reverse(),
-      hasEarlier: found.length > PAGE,
-    },
-  };
+  chatRoomMessagesMap = { ...chatRoomMessagesMap, [roomId]: page };
   notify();
 }
 
@@ -505,47 +547,41 @@ export async function loadEarlier(user: string, roomId: string) {
   const chatRoomMessages = chatRoomMessagesMap[roomId];
   const earliest = chatRoomMessages?.messages[0];
   if (!chatRoomMessages || !earliest || !chatRoomMessages.hasEarlier) return;
-  const db = await openDB();
-  const index = db
-    .transaction('messages')
-    .objectStore('messages')
-    .index('room');
-  const found = await getRecentMessagePage(
-    index,
-    user,
-    roomId,
-    PAGE + 1,
-    earliest.id,
-  );
+  const page = await readPage(user, roomId, earliest.id);
   const current = chatRoomMessagesMap[roomId];
   if (user !== userId || !current || current.messages[0]?.id !== earliest.id)
     return;
   chatRoomMessagesMap = {
     ...chatRoomMessagesMap,
     [roomId]: {
-      messages: [...found.slice(0, PAGE).reverse(), ...current.messages],
-      hasEarlier: found.length > PAGE,
+      messages: [...page.messages, ...current.messages],
+      hasEarlier: page.hasEarlier,
     },
   };
   notify();
 }
 
-// logged out or the account deleted: every chat kept in this browser goes, everyone's, unsent messages too (db/pending's
-// store). cleared rather than the database deleted: another tab's open connection would block deleting it
 export async function clearChats() {
   userId = null;
   rooms = null;
   loading = null;
   chatRoomMessagesMap = NO_CHAT_ROOM_MESSAGES;
+  historyDone.clear();
   notify();
   try {
-    const db = await openDB();
-    const stores = ['messages', 'rooms', 'meta', 'pending'];
-    const tx = db.transaction(stores, 'readwrite');
-    stores.forEach((store) => tx.objectStore(store).clear());
-    await done(tx);
+    await transaction(async (sql) => {
+      for (const table of [
+        'message',
+        'room',
+        'meta',
+        'pending',
+        'pending_file',
+        'gap',
+      ]) {
+        await sql(`DELETE FROM ${table}`);
+      }
+    });
   } catch {
-    // IndexedDB unavailable: nothing was kept
   }
 }
 

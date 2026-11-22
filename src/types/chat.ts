@@ -1,16 +1,16 @@
-// what my-server's chat sends, on the WebSocket and from GET /chat/messaging/recent
 export interface MessagingResponse {
   // uuid v7: also when it was sent, read with timeOfId. the ids of a chat sort as their times do
   id: string;
   // a personal chat's room is the other person, whoever sent the message
   roomId: string;
   fromId: string;
-  // "text" here, "image" or "video" (contents: the files' names), or "accept": an accepted invite's message, the
-  // chat's first, contents [text] as a text's but shown as the invite it was. also
-  // "quit" (one's own leaving, from another tab or device) and "delete" (contents[0] is the message deleted), which
-  // change what's kept instead of showing
   contentType: string;
   contents: string[];
+}
+
+export interface GetRoomsResponse {
+  cursor: string;
+  messages: MessagingResponse[];
 }
 
 // a photo, a video, or a voice message (mobile's "audio", one m4a). the folder its files are in, and the content type

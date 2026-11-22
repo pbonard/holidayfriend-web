@@ -1,16 +1,9 @@
 import { generatePresignedURL, sendMessage, uploadToStorage } from '@/api/chat';
 import { keepMedia } from '@/db/media';
-import { done, openDB, promised, saveSentMessage } from '@/db/message';
+import { saveSentMessage } from '@/db/message';
+import { query, transaction } from '@/db/sqlite';
 import type { MediaType, MessagingResponse } from '@/types/chat';
 import { compressImage } from '@/utils/compressImage';
-
-// one's own messages until chat answers: a text, or photos or videos. shown at once at the end of their chat, dimmed.
-// chat's answer with the message's id is success: it's kept as a message then (saveSentMessage) and goes from here.
-// no answer: not sent, with Retry and Delete. kept in IndexedDB's pending store, [user, key], so a reload or a closed
-// tab doesn't lose them: the text, or the files picked and once uploaded the names garage keeps them under. sending
-// (photos and videos with a line filling as the bytes go) or not sent (it failed, or the page went away while it
-// went). one tab sends an item at a time (Web Locks): another tab doesn't offer to retry what's still on its way
-// elsewhere
 
 export type PendingContentType = 'text' | MediaType;
 
@@ -113,35 +106,120 @@ export function getServerPending() {
   return NONE;
 }
 
-// --- IndexedDB ---
+type PendingRow = {
+  key: string;
+  room_id: string;
+  content_type: PendingContentType;
+  text: string | null;
+  uploaded: string | null;
+};
+type FileRow = {
+  key: string;
+  name: string;
+  type: string;
+  last_modified: number;
+  data: Uint8Array;
+};
 
 async function putRecord(record: PendingRecord) {
-  const db = await openDB();
-  const tx = db.transaction('pending', 'readwrite');
-  tx.objectStore('pending').put(record);
-  await done(tx);
+  const files = await Promise.all(
+    (record.files ?? []).map(async (file) => ({
+      file,
+      data: new Uint8Array(await file.arrayBuffer()),
+    })),
+  );
+  await transaction(async (sql) => {
+    await sql(
+      `INSERT OR REPLACE INTO pending (user, key, room_id, content_type, text, uploaded)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        record.user,
+        record.key,
+        record.roomId,
+        record.contentType,
+        record.text ?? null,
+        record.uploaded ? JSON.stringify(record.uploaded) : null,
+      ],
+    );
+    await sql(`DELETE FROM pending_file WHERE user = ? AND key = ?`, [
+      record.user,
+      record.key,
+    ]);
+    for (const [position, { file, data }] of files.entries()) {
+      await sql(
+        `INSERT INTO pending_file (user, key, position, name, type, last_modified, data)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          record.user,
+          record.key,
+          position,
+          file.name,
+          file.type,
+          file.lastModified,
+          data,
+        ],
+      );
+    }
+  });
+}
+
+function toRecord(user: string, row: PendingRow, files: FileRow[]) {
+  const picked = files
+    .filter(({ key }) => key === row.key)
+    .map(
+      (file) =>
+        new File([new Uint8Array(file.data)], file.name, {
+          type: file.type,
+          lastModified: file.last_modified,
+        }),
+    );
+  return {
+    user,
+    key: row.key,
+    roomId: row.room_id,
+    contentType: row.content_type,
+    text: row.text ?? undefined,
+    files: picked.length > 0 ? picked : undefined,
+    uploaded: row.uploaded ? (JSON.parse(row.uploaded) as string[]) : undefined,
+  } satisfies PendingRecord;
 }
 
 async function getRecord(user: string, key: string) {
-  const db = await openDB();
-  return (await promised(
-    db.transaction('pending').objectStore('pending').get([user, key]),
-  )) as PendingRecord | undefined;
+  const [row] = await query<PendingRow>(
+    `SELECT key, room_id, content_type, text, uploaded FROM pending WHERE user = ? AND key = ?`,
+    [user, key],
+  );
+  if (!row) return undefined;
+  const files = await query<FileRow>(
+    `SELECT key, name, type, last_modified, data FROM pending_file
+     WHERE user = ? AND key = ? ORDER BY position`,
+    [user, key],
+  );
+  return toRecord(user, row, files);
 }
 
 async function deleteRecord(user: string, key: string) {
-  const db = await openDB();
-  const tx = db.transaction('pending', 'readwrite');
-  tx.objectStore('pending').delete([user, key]);
-  await done(tx);
+  await transaction(async (sql) => {
+    await sql(`DELETE FROM pending WHERE user = ? AND key = ?`, [user, key]);
+    await sql(`DELETE FROM pending_file WHERE user = ? AND key = ?`, [
+      user,
+      key,
+    ]);
+  });
 }
 
 async function getRecords(user: string) {
-  const db = await openDB();
-  const range = IDBKeyRange.bound([user, ''], [user, '￿']);
-  return (await promised(
-    db.transaction('pending').objectStore('pending').getAll(range),
-  )) as PendingRecord[];
+  const rows = await query<PendingRow>(
+    `SELECT key, room_id, content_type, text, uploaded FROM pending WHERE user = ?`,
+    [user],
+  );
+  if (rows.length === 0) return [];
+  const files = await query<FileRow>(
+    `SELECT key, name, type, last_modified, data FROM pending_file
+     WHERE user = ? ORDER BY key, position`,
+    [user],
+  );
+  return rows.map((row) => toRecord(user, row, files));
 }
 
 // --- sending ---
@@ -278,7 +356,6 @@ async function start(
   try {
     await putRecord(record);
   } catch {
-    // not kept (IndexedDB unavailable): it can't be sent and come back, it's dropped
     drop(item.roomId, item.key);
     return;
   }
@@ -399,9 +476,6 @@ function isRelayOf(record: Relayable, message: MessagingResponse) {
   );
 }
 
-// one's own messages chat relayed (on the socket, or catching up), once they're kept: photos and videos still here
-// though they reached chat are done, out of IndexedDB and out of this tab's chats. both: another tab may have taken
-// the record out first. call it after putMessages, so the message shows before its pending one goes
 export async function settlePending(
   user: string,
   messages: MessagingResponse[],
