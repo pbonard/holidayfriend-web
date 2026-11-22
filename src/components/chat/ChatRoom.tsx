@@ -14,8 +14,6 @@ import MessageSelectionBar from '@/components/chat/MessageSelectionBar';
 import ChevronLeftIcon from '@/components/icons/ChevronLeftIcon';
 import { profilePath } from '@/utils';
 
-// the chat with one person, as the mobile app's chat screen: who, the messages from this browser's IndexedDB,
-// and the input. the other person's messages arrive on the socket (ChatConnection) and show here as they're kept
 export default function ChatRoom({ roomId }: { roomId: string }) {
   const { myId, messages, hasEarlier, loadEarlier, exists } =
     useRoomMessages(roomId);

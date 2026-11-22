@@ -215,3 +215,5 @@ raw-secret*.yaml
 *.srl
 *.p12
 *.cnf
+
+public/wa-sqlite/

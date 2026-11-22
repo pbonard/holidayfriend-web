@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAccessToken, NotLoggedInError } from '@/api/axios';
 import {
   checkBlock,
+  getChatRooms,
   getRecentMessages,
   openMessagingSocket,
   sendMessage,
@@ -37,6 +38,7 @@ import {
   removeRoom,
   putMessages,
   saveSentMessage,
+  startChats,
   subscribeChats,
   type Rooms,
 } from '@/db/message';
@@ -50,9 +52,6 @@ export function useMyId() {
   return useMyProfileBrief().data?.id;
 }
 
-// receives the messages while a page of the app is open: first what arrived while none was (from the cursor), then
-// each as it's sent, on the socket. it's opened again when it closes, with a wait growing each time it fails, and
-// at once when the tab comes back to view or the network does. as the mobile app's root layout, once for the app
 export function useChatConnection() {
   const myId = useMyId();
   const queryClient = useQueryClient();
@@ -72,7 +71,7 @@ export function useChatConnection() {
 
     const receive = (messages: MessagingResponse[]) => {
       // kept, then one's own among them no longer pending (db/pending): the message shows before its pending one goes
-      void (async () => {
+      const kept = (async () => {
         try {
           await putMessages(user, messages, { moveCursor: true });
         } finally {
@@ -92,15 +91,20 @@ export function useChatConnection() {
             queryKey: [queryKey.CHAT, queryKey.CHECK_BLOCK, roomId],
           }),
         );
+      return kept;
     };
 
-    // what arrived while no socket was open. after the socket opens, so nothing sent in between is missed: one that
-    // comes both ways is kept once
+    const start = async () => {
+      await startChats(user, await getChatRooms());
+      return getCursor(user);
+    };
+
     const catchUp = async () => {
       try {
-        receive(await getRecentMessages(await getCursor(user)));
+        const cursor = (await getCursor(user)) ?? (await start());
+        if (cursor === null) return;
+        await receive(await getRecentMessages(cursor));
       } catch {
-        // the next opening asks again from the same cursor
       }
     };
 
@@ -128,7 +132,7 @@ export function useChatConnection() {
       };
       opening.onmessage = (event: MessageEvent<string>) => {
         try {
-          receive([JSON.parse(event.data) as MessagingResponse]);
+          void receive([JSON.parse(event.data) as MessagingResponse]);
         } catch {
           // chat writes its errors as plain text before closing
         }
@@ -180,7 +184,6 @@ export function useChatConnection() {
 // the chats kept in this browser for the person logged in, their summaries. null until they're read
 function useRooms(myId: string | undefined): Rooms | null {
   const getSnapshot = useCallback(() => (myId ? getRooms(myId) : null), [myId]);
-  // null while prerendering: IndexedDB is the browser's
   return useSyncExternalStore(subscribeChats, getSnapshot, () => null);
 }
 
@@ -207,9 +210,6 @@ export function useHasUnreadChats() {
   return (useChatPreviews() ?? []).some(({ unread }) => unread);
 }
 
-// one chat's latest messages, oldest first, read from IndexedDB a page at a time: undefined until the first page is
-// read, loadEarlier adds the one before. exists: there's a chat with them at all. marked read as messages arrive
-// while the chat is open and the tab in view
 export function useRoomMessages(roomId: string) {
   const myId = useMyId();
   const summary = useRooms(myId)?.[roomId];

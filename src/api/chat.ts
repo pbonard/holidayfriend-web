@@ -1,20 +1,38 @@
 import axios from 'axios';
 import { axiosInstance } from '@/api/axios';
 import type {
+  GetRoomsResponse,
   MessagingResponse,
   MediaType,
   PresignedUpload,
   SendMessageRequest,
 } from '@/types/chat';
 
-// the messages to the person logged in after the cursor, a message id: what arrived while no socket was open.
-// my-server's chat answers null for none
+export async function getChatRooms(): Promise<GetRoomsResponse> {
+  const { data } = await axiosInstance.get<GetRoomsResponse>(
+    '/chat/messaging/rooms',
+  );
+  return data;
+}
+
 export async function getRecentMessages(
   cursor: string,
 ): Promise<MessagingResponse[]> {
-  const { data } = await axiosInstance.get<MessagingResponse[] | null>(
+  const { data } = await axiosInstance.get<MessagingResponse[]>(
     '/chat/messaging/recent',
     { params: { cursor } },
+  );
+  return data;
+}
+
+export async function getRoomHistory(params: {
+  roomId: string;
+  ahead?: string;
+  cursor?: string;
+}): Promise<MessagingResponse[]> {
+  const { data } = await axiosInstance.get<MessagingResponse[] | null>(
+    '/chat/messaging/history',
+    { params },
   );
   return data ?? [];
 }

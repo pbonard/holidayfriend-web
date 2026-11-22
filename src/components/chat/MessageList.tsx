@@ -18,7 +18,6 @@ const NEAR_BOTTOM = 120;
 type MessageListProps = {
   // oldest first, the latest pages of the chat. undefined while the first is read
   messages: MessagingResponse[] | undefined;
-  // older ones are kept too, onLoadEarlier reads the page before
   hasEarlier: boolean;
   onLoadEarlier: () => Promise<void>;
   // one's own messages on their way or not sent, after the messages (db/pending)
@@ -81,8 +80,6 @@ export default function MessageList({
     heightBeforeRef.current = null;
   }, [firstId]);
 
-  // earlier ones as the top comes near (useStartReached), one page at a time. one that fails isn't asked again, so a
-  // broken IndexedDB doesn't ask on and on
   const [loadingEarlier, setLoadingEarlier] = useState(false);
   const [earlierFailed, setEarlierFailed] = useState(false);
   const showEarlier = useCallback(async () => {
