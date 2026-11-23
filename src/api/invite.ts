@@ -31,3 +31,8 @@ export async function declineInvite(id: string): Promise<void> {
   const request: IdInterface = { id };
   await axiosInstance.post('/api/invite/decline', request);
 }
+
+export async function reportInvite(id: string): Promise<void> {
+  const request: IdInterface = { id };
+  await axiosInstance.post('/api/invite/report', request);
+}

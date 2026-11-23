@@ -6,11 +6,17 @@ import * as stylex from '@stylexjs/stylex';
 import { NotLoggedInError } from '@/api/axios';
 import { PROFILE_NOT_FOUND } from '@/api/profile';
 import { PROMPTS } from '@/constants/prompts';
-import { useGetProfile, useMyProfileBrief } from '@/hooks/useProfile';
+import {
+  useGetProfile,
+  useMyProfileBrief,
+  useReportProfile,
+} from '@/hooks/useProfile';
 import { useScrolled } from '@/hooks/useScrolled';
 import { auth, breakpoints } from '@/styles/tokens.stylex';
 import BackLink from '@/components/BackLink';
 import Button from '@/components/Button';
+import ConfirmModal from '@/components/ConfirmModal';
+import DropdownMenu from '@/components/DropdownMenu';
 import ErrorText from '@/components/ErrorText';
 import Modal from '@/components/Modal';
 import StatusText from '@/components/StatusText';
@@ -32,6 +38,9 @@ export default function ProfileDetail({ userId }: { userId: string }) {
   const myProfile = useMyProfileBrief();
   // "Say hi" opens the message in a sheet over the page, as on a post
   const [sayingHi, setSayingHi] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [confirmingReport, setConfirmingReport] = useState(false);
+  const reportProfileMutation = useReportProfile();
 
   const notLoggedIn =
     profile.error instanceof NotLoggedInError ||
@@ -113,15 +122,34 @@ export default function ProfileDetail({ userId }: { userId: string }) {
                 Say hi
               </Button>
             )}
-            {/* nothing behind it yet */}
-            <Button
-              variant="secondary"
-              disabled
-              aria-label="More options"
-              xstyle={styles.more}
-            >
-              <MoreIcon size={20} />
-            </Button>
+            {canSayHi ? (
+              <DropdownMenu
+                open={moreOpen}
+                onOpenChange={setMoreOpen}
+                label="More options"
+                triggerStyle={styles.more}
+                trigger={<MoreIcon size={20} />}
+                items={[
+                  {
+                    label: 'Report profile',
+                    danger: true,
+                    onClick: () => {
+                      setMoreOpen(false);
+                      setConfirmingReport(true);
+                    },
+                  },
+                ]}
+              />
+            ) : (
+              <Button
+                variant="secondary"
+                disabled
+                aria-label="More options"
+                xstyle={styles.moreDisabled}
+              >
+                <MoreIcon size={20} />
+              </Button>
+            )}
           </div>
         </section>
       </aside>
@@ -173,6 +201,17 @@ export default function ProfileDetail({ userId }: { userId: string }) {
           <UserPosts userId={userId} />
         </div>
       </div>
+
+      <ConfirmModal
+        open={confirmingReport}
+        onClose={() => setConfirmingReport(false)}
+        title="Report this profile?"
+        description="We'll check it against our rules, like hate, harassment, scams or ads, and ban them if it breaks them. They aren't told who reported it."
+        confirmLabel="Report"
+        fallbackError="Couldn't report the profile."
+        doneMessage="Thanks for telling us. We'll check it against our rules and ban them if it breaks them."
+        onConfirm={() => reportProfileMutation.mutateAsync(userId)}
+      />
 
       <Modal
         open={sayingHi}
@@ -329,6 +368,17 @@ const styles = stylex.create({
   },
   // Button's secondary look, round
   more: {
+    flexShrink: 0,
+    width: '44px',
+    height: '44px',
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: { default: auth.border, ':hover': auth.muted },
+    borderRadius: '50%',
+    color: auth.text,
+    transition: 'background-color 120ms ease, border-color 120ms ease',
+  },
+  moreDisabled: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',

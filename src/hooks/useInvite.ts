@@ -10,6 +10,7 @@ import {
   declineInvite,
   INVITE_PAGE_SIZE,
   listInvites,
+  reportInvite,
   sendInvite,
 } from '@/api/invite';
 import type { InviteListItem } from '@/types/invite';
@@ -35,7 +36,7 @@ export function useInfiniteInvites() {
 
 // an answered invite leaves the list where it is, without asking for the pages again: the others don't move.
 // also when it's gone already ("Invite not found"), answered in another tab or sent again with a new id
-function useRemoveInvite() {
+export function useRemoveInvite() {
   const queryClient = useQueryClient();
   return (id: string) =>
     queryClient.setQueryData<InfiniteData<InviteListItem[], string | undefined>>(
@@ -64,4 +65,8 @@ export function useDeclineInvite() {
     mutationFn: declineInvite,
     onSuccess: (_, id) => removeInvite(id),
   });
+}
+
+export function useReportInvite() {
+  return useMutation({ mutationFn: reportInvite });
 }

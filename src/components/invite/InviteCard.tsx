@@ -1,11 +1,19 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import * as stylex from '@stylexjs/stylex';
-import { useAcceptInvite, useDeclineInvite } from '@/hooks/useInvite';
+import {
+  useAcceptInvite,
+  useDeclineInvite,
+  useRemoveInvite,
+  useReportInvite,
+} from '@/hooks/useInvite';
 import { auth } from '@/styles/tokens.stylex';
 import type { InviteListItem } from '@/types/invite';
 import Button from '@/components/Button';
+import ConfirmModal from '@/components/ConfirmModal';
+import DropdownMenu from '@/components/DropdownMenu';
 import PersonHeader from '@/components/PersonHeader';
 import MoreIcon from '@/components/icons/MoreIcon';
 import { chatPath } from '@/utils';
@@ -21,6 +29,10 @@ export default function InviteCard({ invite }: { invite: InviteListItem }) {
   const router = useRouter();
   const acceptInviteMutation = useAcceptInvite();
   const declineInviteMutation = useDeclineInvite();
+  const reportInviteMutation = useReportInvite();
+  const removeInvite = useRemoveInvite();
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [confirmingReport, setConfirmingReport] = useState(false);
   const answering =
     acceptInviteMutation.isPending || declineInviteMutation.isPending;
   // the one that failed last. one that's gone already isn't an error: it leaves the list, as answered
@@ -69,16 +81,42 @@ export default function InviteCard({ invite }: { invite: InviteListItem }) {
         >
           Decline
         </Button>
-        {/* nothing behind it yet */}
-        <Button
-          variant="secondary"
-          disabled
-          aria-label="More options"
-          xstyle={styles.more}
-        >
-          <MoreIcon size={20} />
-        </Button>
+        <DropdownMenu
+          open={moreOpen}
+          onOpenChange={setMoreOpen}
+          label="More options"
+          triggerStyle={styles.more}
+          trigger={<MoreIcon size={20} />}
+          items={[
+            {
+              label: 'Report invite',
+              danger: true,
+              onClick: () => {
+                setMoreOpen(false);
+                setConfirmingReport(true);
+              },
+            },
+          ]}
+        />
       </div>
+      <ConfirmModal
+        open={confirmingReport}
+        onClose={() => {
+          setConfirmingReport(false);
+          if (reportInviteMutation.isSuccess) removeInvite(invite.id);
+        }}
+        title="Report this invite?"
+        description="It's declined, and we'll check its message against our rules, like hate, harassment, scams or ads. If it breaks them, the sender is banned. They aren't told who reported it."
+        confirmLabel="Report"
+        fallbackError="Couldn't report the invite."
+        doneMessage="Thanks for telling us. It's declined, and we'll check it against our rules."
+        onConfirm={() =>
+          reportInviteMutation.mutateAsync(invite.id).catch((error: Error) => {
+            if (error.message !== INVITE_NOT_FOUND) throw error;
+            removeInvite(invite.id);
+          })
+        }
+      />
       {error && (
         <p role="alert" {...stylex.props(styles.error)}>
           {error.message}
@@ -139,15 +177,15 @@ const styles = stylex.create({
   },
   // Button's secondary look, round
   more: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
     flexShrink: 0,
     width: '44px',
     height: '44px',
-    padding: 0,
+    borderWidth: '1px',
+    borderStyle: 'solid',
+    borderColor: { default: auth.border, ':hover': auth.muted },
     borderRadius: '50%',
-    backgroundColor: 'transparent',
+    color: auth.text,
+    transition: 'background-color 120ms ease, border-color 120ms ease',
   },
   error: {
     marginTop: '12px',

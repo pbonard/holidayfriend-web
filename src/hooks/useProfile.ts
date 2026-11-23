@@ -4,6 +4,7 @@ import {
   getMyProfileBrief,
   getProfile,
   getProfileStatus,
+  reportProfile,
   saveProfile,
 } from '@/api/profile';
 
@@ -43,4 +44,8 @@ export function useGetProfile(id: string) {
     queryKey: [queryKey.PROFILE, queryKey.GET_PROFILE, id],
     queryFn: () => getProfile(id),
   });
+}
+
+export function useReportProfile() {
+  return useMutation({ mutationFn: reportProfile });
 }
