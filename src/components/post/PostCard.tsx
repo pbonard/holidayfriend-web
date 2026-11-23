@@ -366,6 +366,7 @@ const styles = stylex.create({
     gridColumnStart: { default: 1, [breakpoints.desktop]: 2 },
     gridRowStart: { default: 'auto', [breakpoints.desktop]: 1 },
     display: 'flex',
+    justifyContent: 'flex-end',
     gap: '10px',
   },
   title: {
@@ -397,7 +398,6 @@ const styles = stylex.create({
   cities: {
     // after the body on a phone's page too, before its buttons
     order: { default: 1, [breakpoints.desktop]: 0 },
-    marginTop: 'auto',
     position: 'relative',
     zIndex: 1,
     display: 'flex',
