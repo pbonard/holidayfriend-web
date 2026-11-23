@@ -117,7 +117,7 @@ const styles = stylex.create({
     listStyle: 'none',
   },
   item: {
-    display: 'flex',
+    display: 'grid',
     flexShrink: 0,
     // most of a phone's width, so the next card peeks in and says the row scrolls
     width: { default: '85%', [breakpoints.desktop]: '300px' },
