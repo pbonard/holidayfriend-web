@@ -1,4 +1,5 @@
 import { axiosInstance } from '@/api/axios';
+import type { IdInterface } from '@/types/common';
 import type { Profile, ProfileBrief, ProfileFormValue } from '@/types/profile';
 
 // the server's own 404 body. matched exactly because a missing route is a 404 too, and that must not send someone to onboarding
@@ -31,4 +32,9 @@ export async function getProfile(id: string): Promise<Profile> {
     params: { id },
   });
   return data;
+}
+
+export async function reportProfile(id: string): Promise<void> {
+  const request: IdInterface = { id };
+  await axiosInstance.post('/api/profile/report', request);
 }
