@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { axiosInstance } from '@/api/axios';
+import type { IdInterface } from '@/types/common';
 import type {
   MessagingResponse,
   MediaType,
@@ -94,4 +95,10 @@ export async function checkBlock(id: string): Promise<{ didBlock: boolean }> {
     params: { id },
   });
   return data;
+}
+
+// reports a person and blocks them: the block comes back on the socket as a "block" message
+export async function reportUser(id: string): Promise<void> {
+  const request: IdInterface = { id };
+  await axiosInstance.post('/chat/report/user', request);
 }

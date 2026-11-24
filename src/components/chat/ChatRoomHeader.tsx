@@ -3,9 +3,15 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import * as stylex from '@stylexjs/stylex';
-import { useBlockChat, useCheckBlock, useLeaveChat } from '@/hooks/useChat';
+import {
+  useBlockChat,
+  useCheckBlock,
+  useLeaveChat,
+  useReportUser,
+} from '@/hooks/useChat';
 import { auth } from '@/styles/tokens.stylex';
 import Button from '@/components/Button';
+import ConfirmModal from '@/components/ConfirmModal';
 import DropdownMenu from '@/components/DropdownMenu';
 import Modal from '@/components/Modal';
 import MoreIcon from '@/components/icons/MoreIcon';
@@ -24,12 +30,13 @@ export default function ChatRoomHeader({
   const router = useRouter();
   const leaveChatMutation = useLeaveChat(roomId);
   const blockChatMutation = useBlockChat(roomId);
+  const reportUserMutation = useReportUser(roomId);
   // whether they're blocked: Block or Unblock, once it's known
   const didBlock = useCheckBlock(roomId).data?.didBlock;
   const [open, setOpen] = useState(false);
   // what's asked before it's done, or an unblock that failed
   const [confirming, setConfirming] = useState<
-    'leave' | 'block' | 'unblockFailed' | null
+    'leave' | 'block' | 'unblockFailed' | 'report' | null
   >(null);
 
   const leave = () => {
@@ -89,6 +96,15 @@ export default function ChatRoomHeader({
                 blockChatMutation.reset();
                 setConfirming('block');
               }
+            },
+          },
+          {
+            // blocks too, unless they already are
+            label: didBlock ? 'Report' : 'Report and block',
+            danger: true,
+            onClick: () => {
+              setOpen(false);
+              setConfirming('report');
             },
           },
           {
@@ -160,6 +176,21 @@ export default function ChatRoomHeader({
           </Button>
         </div>
       </Modal>
+
+      <ConfirmModal
+        open={confirming === 'report'}
+        onClose={() => setConfirming(null)}
+        title={`Report ${name || 'them'}?`}
+        description={
+          didBlock
+            ? "They're banned if enough people report them. They aren't told who did."
+            : "You won't get their messages, and they're banned if enough people report them. They aren't told who did, and you can unblock them from this menu."
+        }
+        confirmLabel={didBlock ? 'Report' : 'Report and block'}
+        fallbackError="Couldn't report them."
+        doneMessage="Thanks for telling us. They're blocked, and banned if enough people report them."
+        onConfirm={() => reportUserMutation.mutateAsync()}
+      />
 
       <Modal
         open={confirming === 'leave'}
