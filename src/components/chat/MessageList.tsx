@@ -31,10 +31,21 @@ type MessageListProps = {
   selection?: { ids: ReadonlySet<string>; onToggle: (id: string) => void };
 };
 
+// oldest first, without a block or unblock that repeats the one before it: reporting someone blocked blocks them again
+function withoutRepeatedBlocks(messages: MessagingResponse[]) {
+  let last: string | undefined;
+  return messages.filter((message) => {
+    if (!isBlockEvent(message)) return true;
+    const repeated = message.contentType === last;
+    last = message.contentType;
+    return !repeated;
+  });
+}
+
 // a chat's messages, the latest at the bottom, scrolling on their own. a page shows at first, earlier ones as its top
 // scrolls near
 export default function MessageList({
-  messages,
+  messages: allMessages,
   hasEarlier,
   onLoadEarlier,
   pending,
@@ -42,6 +53,7 @@ export default function MessageList({
   name,
   selection,
 }: MessageListProps) {
+  const messages = allMessages && withoutRepeatedBlocks(allMessages);
   const scrollerRef = useRef<HTMLDivElement>(null);
   // whether it was at the bottom before the latest change, so a new message keeps it there
   const atBottomRef = useRef(true);

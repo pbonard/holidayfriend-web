@@ -5,6 +5,7 @@ import {
   checkBlock,
   getRecentMessages,
   openMessagingSocket,
+  reportUser,
   sendMessage,
 } from '@/api/chat';
 import { queryKey } from '@/constants';
@@ -377,6 +378,18 @@ export function useBlockChat(roomId: string) {
         });
       }
     },
+    onSettled: () =>
+      queryClient.invalidateQueries({
+        queryKey: [queryKey.CHAT, queryKey.CHECK_BLOCK, roomId],
+      }),
+  });
+}
+
+// the socket's "block" message makes the menu ask again too (useChatConnection), here it's for when there's no socket
+export function useReportUser(roomId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => reportUser(roomId),
     onSettled: () =>
       queryClient.invalidateQueries({
         queryKey: [queryKey.CHAT, queryKey.CHECK_BLOCK, roomId],
