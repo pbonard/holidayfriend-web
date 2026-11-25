@@ -1,6 +1,7 @@
 import * as stylex from '@stylexjs/stylex';
 import { auth } from '@/styles/tokens.stylex';
-import VoiceCallStatusText from '@/components/chat/VoiceCallStatus';
+import VoiceCallStatusText from '@/components/chat/VoiceCallStatusText';
+
 import MicIcon from '@/components/icons/MicIcon';
 import MicOffIcon from '@/components/icons/MicOffIcon';
 import PhoneIcon from '@/components/icons/PhoneIcon';
