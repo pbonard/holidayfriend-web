@@ -29,7 +29,7 @@ import { explorePath, placeFromPath } from '@/utils/citySearch';
 const POST_NOT_FOUND = 'Post not found';
 
 // a post's own page, from the city it was found in: /explore/jp/tokyo/{id}. the page puts the way back to that
-// city above it. the recommendations are more of its posts by the same kind of people
+// city above it, and the related posts under it
 export default function PostDetail() {
   const router = useRouter();
   const params = useParams<{ country: string; city: string; postId: string }>();

@@ -18,16 +18,6 @@ export function useEndReached(list: InfiniteList) {
   return setEnd;
 }
 
-// the same for a row that scrolls sideways: the next page as the row's end scrolls near its right edge. returns the
-// refs for the row, the box it scrolls in, and for an empty element after its last item
-export function useEndReachedHorizontally(list: InfiniteList) {
-  const [row, setRow] = useState<Element | null>(null);
-  const [end, setEnd] = useState<Element | null>(null);
-  // the end only once the row is there too, or its observer would watch the window instead
-  useLoadAtEnd(list, row && end, row, `0px ${AHEAD} 0px 0px`);
-  return { rowRef: setRow, endRef: setEnd };
-}
-
 // the same for a list that grows upward in its own scroll box, a chat's earlier messages: the next page as the list's
 // start scrolls near the box's top. returns the refs for the box and for an empty element before its first item
 export function useStartReached(list: InfiniteList) {
