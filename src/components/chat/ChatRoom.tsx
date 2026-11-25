@@ -6,13 +6,16 @@ import * as stylex from '@stylexjs/stylex';
 import { PROFILE_NOT_FOUND } from '@/api/profile';
 import { usePendingMessages, useRoomMessages } from '@/hooks/useChat';
 import { useGetProfile } from '@/hooks/useProfile';
+import { useVoiceCall } from '@/hooks/useVoiceCall';
 import { auth, breakpoints } from '@/styles/tokens.stylex';
-import ChatRoomHeader from '@/components/chat/ChatRoomHeader';
+import ChatRoomMore from '@/components/chat/ChatRoomMore';
 import MessageInput from '@/components/chat/MessageInput';
 import MessageList from '@/components/chat/MessageList';
 import MessageSelectionBar from '@/components/chat/MessageSelectionBar';
+import VoiceCallControls from '@/components/chat/VoiceCallControls';
 import ChevronLeftIcon from '@/components/icons/ChevronLeftIcon';
 import { profilePath } from '@/utils';
+import { canCall } from '@/utils/voiceCall';
 
 export default function ChatRoom({ roomId }: { roomId: string }) {
   const { myId, messages, hasEarlier, loadEarlier, exists } =
@@ -22,6 +25,7 @@ export default function ChatRoom({ roomId }: { roomId: string }) {
   const gone = profile.isError && profile.error.message === PROFILE_NOT_FOUND;
   const name = profile.data?.name || (profile.isPending ? '' : 'Someone');
   const initial = name.trim().charAt(0).toUpperCase() || '?';
+  const voiceCall = useVoiceCall(roomId);
   // the messages chosen to delete, null when not choosing
   const [selected, setSelected] = useState<ReadonlySet<string> | null>(null);
   // deleting goes to the other person too: only in a chat there is, with them still there
@@ -56,7 +60,20 @@ export default function ChatRoom({ roomId }: { roomId: string }) {
           </span>
           <span {...stylex.props(styles.name)}>{name}</span>
         </Link>
-        <ChatRoomHeader
+        {/* only in a chat there is, as the input, and until a call is over. exists is false while prerendering, so canCall
+            is the browser's */}
+        {(voiceCall.call || (exists && !gone && canCall())) && (
+          <VoiceCallControls
+            name={name}
+            call={voiceCall.call}
+            error={voiceCall.error}
+            ready={voiceCall.ready}
+            onStart={voiceCall.start}
+            onToggleMute={voiceCall.toggleMute}
+            onHangUp={voiceCall.hangUp}
+          />
+        )}
+        <ChatRoomMore
           roomId={roomId}
           name={name}
           onSelectMessages={
