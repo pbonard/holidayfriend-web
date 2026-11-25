@@ -17,7 +17,7 @@ import Modal from '@/components/Modal';
 import MoreIcon from '@/components/icons/MoreIcon';
 import { profilePath } from '@/utils';
 
-export default function ChatRoomHeader({
+export default function ChatRoomMore({
   roomId,
   name,
   onSelectMessages,
