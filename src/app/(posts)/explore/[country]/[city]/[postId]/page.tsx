@@ -39,7 +39,7 @@ async function Post({ params }: { params: Params }) {
   return (
     <>
       <PostDetail />
-      {/* more of the city's posts by the same kind of people, once the post is there */}
+      {/* the posts most like it */}
       <Recommendations place={place} postId={postId} />
     </>
   );

@@ -13,6 +13,7 @@ import {
   getPostDetail,
   listNotInterestedPostIds,
   listPosts,
+  listRelatedPosts,
   listUserPosts,
   markNotInterested,
   POST_PAGE_SIZE,
@@ -139,5 +140,17 @@ export function useGetPostDetail(id: string) {
   return useQuery({
     queryKey: [queryKey.POST, queryKey.GET_POST_DETAIL, id],
     queryFn: () => getPostDetail(id),
+  });
+}
+
+// the row under a post's page, without what the viewer marked "Not interested", as the feeds
+export function useGetRelatedPosts(id: string) {
+  const notInterested = useNotInterestedPostIds();
+  return useQuery({
+    queryKey: [queryKey.POST, queryKey.GET_RELATED_POSTS, id],
+    queryFn: () => listRelatedPosts(id),
+    select: (posts) =>
+      posts.filter((post) => !notInterested.data?.includes(post.id)),
+    enabled: !notInterested.isPending,
   });
 }

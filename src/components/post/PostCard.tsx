@@ -50,6 +50,8 @@ export default function PostCard({
   detail = false,
   actions,
 }: PostCardProps) {
+  // a related post can be of another city than the one it's seen from
+  const elsewhere = !post.places.some((city) => samePlace(city, place));
   // the rest of the trip: the city it's seen from goes without saying
   const otherCities = post.places.filter((city) => !samePlace(city, place));
   const [showAllCities, setShowAllCities] = useState(detail);
@@ -96,7 +98,13 @@ export default function PostCard({
   const cities = shown.length > 0 && (
     <div {...stylex.props(styles.fullWidth, styles.cities)}>
       <MapPinIcon size={15} xstyle={styles.pin} />
-      <span {...stylex.props(styles.also)}>Also going to travel</span>
+      <span {...stylex.props(styles.also)}>
+        {post.role === 'local'
+          ? 'Lives in'
+          : elsewhere
+            ? 'Going to travel'
+            : 'Also going to travel'}
+      </span>
       {/* each one opens that city, so a trip leads on to the next */}
       {shown.map((city) => (
         <Link
@@ -240,7 +248,7 @@ export default function PostCard({
         // other links or buttons, so the city tags and the +n button sit on a layer above it instead
         <h2 {...stylex.props(styles.fullWidth, styles.title)}>
           <Link
-            href={postPath(place, post.id)}
+            href={postPath(elsewhere ? (post.places[0] ?? place) : place, post.id)}
             {...stylex.props(cardLinkMarker, styles.open)}
           >
             {post.title}

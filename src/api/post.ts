@@ -47,6 +47,14 @@ export async function getPostDetail(id: string): Promise<PostDetail> {
   return data;
 }
 
+// the posts most like a post, for the row under its page: of its cities first, then of its countries
+export async function listRelatedPosts(id: string): Promise<PostFeedItem[]> {
+  const { data } = await axiosInstance.get('/api/post/related', {
+    params: { id },
+  });
+  return data;
+}
+
 // hides a post from the viewer, from the more button of its card. marking it again is fine
 export async function markNotInterested(id: string): Promise<void> {
   const request: IdInterface = { id };
