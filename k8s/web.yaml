@@ -19,7 +19,7 @@ spec:
       containers:
         - name: web
           # the web workflow writes the tag of each build here, argo cd deploys that commit
-          image: "ghcr.io/pbonard/holidayfriend/web:f63f50c"
+          image: "ghcr.io/pbonard/holidayfriend/web:a42d99a"
           imagePullPolicy: Always
           ports:
             - containerPort: 3000
