@@ -47,10 +47,13 @@ export async function getPostDetail(id: string): Promise<PostDetail> {
   return data;
 }
 
-// the posts most like a post, for the row under its page: of its cities first, then of its countries
-export async function listRelatedPosts(id: string): Promise<PostFeedItem[]> {
+// the posts most like a post, for the row under its page: of the city it's seen from, then of the rest of its country
+export async function listRelatedPosts(
+  id: string,
+  place: Place,
+): Promise<PostFeedItem[]> {
   const { data } = await axiosInstance.get('/api/post/related', {
-    params: { id },
+    params: { id, country: place.country, city: place.city },
   });
   return data;
 }

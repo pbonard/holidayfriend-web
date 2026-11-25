@@ -7,7 +7,7 @@ import { breakpoints } from '@/styles/tokens.stylex';
 import type { Place } from '@/types/post';
 import PostCard from '@/components/post/PostCard';
 
-// the posts most like the post, by the same kind of people: of its cities, then of its countries
+// the posts most like the post, by the same kind of people: of the city, then of the rest of its country
 export default function Recommendations({
   place,
   postId,
@@ -24,7 +24,7 @@ export default function Recommendations({
         city: myProfile.data.basedInCity,
       }
     : null;
-  const related = useGetRelatedPosts(postId).data ?? [];
+  const related = useGetRelatedPosts(postId, place).data ?? [];
 
   // extras: nothing at all rather than a loading line or an error under the post
   if (related.length === 0) {
